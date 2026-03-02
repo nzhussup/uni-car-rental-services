@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions
+	xmlns="http://schemas.xmlsoap.org/wsdl/"
+	xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+	xmlns:tns="http://example.com/currencyconverter"
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	targetNamespace="http://example.com/currencyconverter"
+	name="CurrencyConverterService">
+
+	<types>
+		<xsd:schema targetNamespace="http://example.com/currencyconverter" elementFormDefault="qualified">
+			<xsd:element name="GetExchangeRateRequest">
+				<xsd:complexType>
+					<xsd:sequence>
+						<xsd:element name="FromCurrency" type="xsd:string"/>
+						<xsd:element name="ToCurrency" type="xsd:string"/>
+					</xsd:sequence>
+				</xsd:complexType>
+			</xsd:element>
+
+			<xsd:element name="GetExchangeRateResponse">
+				<xsd:complexType>
+					<xsd:sequence>
+						<xsd:element name="Rate" type="xsd:double"/>
+						<xsd:element name="Source" type="xsd:string"/>
+						<xsd:element name="BaseCurrency" type="xsd:string"/>
+						<xsd:element name="TargetCurrency" type="xsd:string"/>
+					</xsd:sequence>
+				</xsd:complexType>
+			</xsd:element>
+
+			<xsd:element name="ConvertAmountRequest">
+				<xsd:complexType>
+					<xsd:sequence>
+						<xsd:element name="Amount" type="xsd:double"/>
+						<xsd:element name="FromCurrency" type="xsd:string"/>
+						<xsd:element name="ToCurrency" type="xsd:string"/>
+					</xsd:sequence>
+				</xsd:complexType>
+			</xsd:element>
+
+			<xsd:element name="ConvertAmountResponse">
+				<xsd:complexType>
+					<xsd:sequence>
+						<xsd:element name="ConvertedAmount" type="xsd:double"/>
+						<xsd:element name="Rate" type="xsd:double"/>
+						<xsd:element name="Source" type="xsd:string"/>
+						<xsd:element name="BaseCurrency" type="xsd:string"/>
+						<xsd:element name="TargetCurrency" type="xsd:string"/>
+					</xsd:sequence>
+				</xsd:complexType>
+			</xsd:element>
+
+			<xsd:element name="GetSupportedCurrenciesRequest">
+				<xsd:complexType>
+					<xsd:sequence/>
+				</xsd:complexType>
+			</xsd:element>
+
+			<xsd:element name="GetSupportedCurrenciesResponse">
+				<xsd:complexType>
+					<xsd:sequence>
+						<xsd:element name="Currencies" minOccurs="1" maxOccurs="1">
+							<xsd:complexType>
+								<xsd:sequence>
+									<xsd:element name="Currency" type="xsd:string" minOccurs="0" maxOccurs="unbounded"/>
+								</xsd:sequence>
+							</xsd:complexType>
+						</xsd:element>
+					</xsd:sequence>
+				</xsd:complexType>
+			</xsd:element>
+		</xsd:schema>
+	</types>
+
+	<message name="GetExchangeRateInput">
+		<part name="parameters" element="tns:GetExchangeRateRequest"/>
+	</message>
+	<message name="GetExchangeRateOutput">
+		<part name="parameters" element="tns:GetExchangeRateResponse"/>
+	</message>
+
+	<message name="ConvertAmountInput">
+		<part name="parameters" element="tns:ConvertAmountRequest"/>
+	</message>
+	<message name="ConvertAmountOutput">
+		<part name="parameters" element="tns:ConvertAmountResponse"/>
+	</message>
+
+	<message name="GetSupportedCurrenciesInput">
+		<part name="parameters" element="tns:GetSupportedCurrenciesRequest"/>
+	</message>
+	<message name="GetSupportedCurrenciesOutput">
+		<part name="parameters" element="tns:GetSupportedCurrenciesResponse"/>
+	</message>
+
+	<portType name="CurrencyConverterPortType">
+		<operation name="GetExchangeRate">
+			<input message="tns:GetExchangeRateInput"/>
+			<output message="tns:GetExchangeRateOutput"/>
+		</operation>
+
+		<operation name="ConvertAmount">
+			<input message="tns:ConvertAmountInput"/>
+			<output message="tns:ConvertAmountOutput"/>
+		</operation>
+
+		<operation name="GetSupportedCurrencies">
+			<input message="tns:GetSupportedCurrenciesInput"/>
+			<output message="tns:GetSupportedCurrenciesOutput"/>
+		</operation>
+	</portType>
+
+	<binding name="CurrencyConverterBinding" type="tns:CurrencyConverterPortType">
+		<soap:binding transport="http://schemas.xmlsoap.org/soap/http" style="document"/>
+
+		<operation name="GetExchangeRate">
+			<soap:operation soapAction="GetExchangeRate"/>
+			<input>
+				<soap:body use="literal"/>
+			</input>
+			<output>
+				<soap:body use="literal"/>
+			</output>
+		</operation>
+
+		<operation name="ConvertAmount">
+			<soap:operation soapAction="ConvertAmount"/>
+			<input>
+				<soap:body use="literal"/>
+			</input>
+			<output>
+				<soap:body use="literal"/>
+			</output>
+		</operation>
+
+		<operation name="GetSupportedCurrencies">
+			<soap:operation soapAction="GetSupportedCurrencies"/>
+			<input>
+				<soap:body use="literal"/>
+			</input>
+			<output>
+				<soap:body use="literal"/>
+			</output>
+		</operation>
+	</binding>
+
+	<service name="CurrencyConverterService">
+		<port name="CurrencyConverterPort" binding="tns:CurrencyConverterBinding">
+			<soap:address location="http://localhost:8080/soap"/>
+		</port>
+	</service>
+
+</definitions>
