@@ -1,0 +1,126 @@
+# -----------------------------
+# OS / general
+# -----------------------------
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# -----------------------------
+# Editor / IDE
+# -----------------------------
+
+# VS Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# Vim
+*.swp
+*.swo
+*~
+Session.vim
+.netrwhist
+
+# IntelliJ / JetBrains
+.idea/
+*.iml
+out/
+
+# -----------------------------
+# Logs
+# -----------------------------
+*.log
+logs/
+*.pid
+*.seed
+*.pid.lock
+
+# -----------------------------
+# Environment / secrets
+# -----------------------------
+.env
+.env.*
+!.env.example
+!.env.sample
+*.local
+secrets.*
+*.secret
+
+# -----------------------------
+# Go
+# -----------------------------
+# binaries
+bin/
+dist/
+build/
+
+# test / coverage
+*.test
+coverage.out
+cover.out
+*.coverprofile
+
+# vendoring (uncomment if you do NOT want to commit vendor)
+# vendor/
+
+# Go workspace
+go.work.sum
+
+# -----------------------------
+# .NET
+# -----------------------------
+bin/
+obj/
+Debug/
+Release/
+x64/
+x86/
+[Bb]uild[Ll]og.*
+[Ll]og/
+
+# user-specific files
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+
+# test results
+TestResults/
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+!packages/build/
+.nuget/
+
+# Rider / ReSharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# -----------------------------
+# Temporary files
+# -----------------------------
+tmp/
+temp/
+*.tmp
+*.bak
+*.orig
+*.rej
+
+# -----------------------------
+# Generated / archives
+# -----------------------------
+*.zip
+*.tar
+*.gz
+*.rar
+
+# -----------------------------
+# Optional: local tool caches
+# -----------------------------
+.cache/
