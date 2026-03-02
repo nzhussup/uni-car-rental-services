@@ -1,0 +1,7 @@
+<Envelope>
+  <Cube>
+    <Cube>
+      <Cube currency="USD" rate="1.1" />
+    </Cube>
+  </Cube>
+</Envelope>

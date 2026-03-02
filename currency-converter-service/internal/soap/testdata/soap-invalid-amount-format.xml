@@ -1,0 +1,9 @@
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:cur="http://example.com/currencyconverter">
+  <soapenv:Body>
+    <cur:ConvertAmountRequest>
+      <Amount>abc</Amount>
+      <FromCurrency>EUR</FromCurrency>
+      <ToCurrency>USD</ToCurrency>
+    </cur:ConvertAmountRequest>
+  </soapenv:Body>
+</soapenv:Envelope>

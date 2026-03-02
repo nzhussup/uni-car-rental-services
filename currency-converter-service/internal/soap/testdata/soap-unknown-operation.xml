@@ -1,0 +1,5 @@
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:cur="http://example.com/currencyconverter">
+  <soapenv:Body>
+    <cur:UnknownOperationRequest/>
+  </soapenv:Body>
+</soapenv:Envelope>
