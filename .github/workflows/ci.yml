@@ -1,0 +1,220 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: "9.0.x"
+
+jobs:
+  prepare:
+    name: Prepare Service Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.generate.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate matrix from service config
+        id: generate
+        run: |
+          python3 .github/scripts/generate_ci_matrix.py \
+            --config .github/ci/services.json \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --repo-name "${{ github.repository }}" \
+            >> "$GITHUB_OUTPUT"
+
+  quality:
+    name: Quality (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        if: matrix.type == 'go'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ${{ matrix.path }}/go.mod
+
+      - name: Setup .NET
+        if: matrix.type == 'dotnet'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Lint (Go)
+        if: matrix.type == 'go'
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.61
+          working-directory: ${{ matrix.path }}
+
+      - name: Lint (.NET)
+        if: matrix.type == 'dotnet'
+        shell: bash
+        run: |
+          target="${{ matrix.solution }}"
+          if [[ -z "$target" ]]; then
+            target="${{ matrix.project }}"
+          fi
+          dotnet format "$target" --verify-no-changes --verbosity diagnostic
+
+      - name: Verify SonarQube configuration
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        run: |
+          if [[ -z "$SONAR_TOKEN" || -z "$SONAR_HOST_URL" ]]; then
+            echo "SONAR_TOKEN and SONAR_HOST_URL repository secrets are required for quality stage."
+            exit 1
+          fi
+
+      - name: SonarQube scan
+        uses: SonarSource/sonarqube-scan-action@v4.2.1
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          projectBaseDir: ${{ matrix.path }}
+          args: >
+            -Dsonar.projectKey=${{ matrix.sonarProjectKey }}
+            -Dsonar.projectName=${{ matrix.name }}
+            -Dsonar.sources=.
+            -Dsonar.qualitygate.wait=true
+
+  test:
+    name: Test (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        if: matrix.type == 'go'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ${{ matrix.path }}/go.mod
+
+      - name: Setup .NET
+        if: matrix.type == 'dotnet'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Unit tests (Go)
+        if: matrix.type == 'go'
+        working-directory: ${{ matrix.path }}
+        run: go test ./... -v
+
+      - name: Unit tests (.NET)
+        if: matrix.type == 'dotnet'
+        shell: bash
+        run: |
+          target="${{ matrix.solution }}"
+          if [[ -z "$target" ]]; then
+            target="${{ matrix.project }}"
+          fi
+          dotnet test "$target" --configuration Release --verbosity normal
+
+  build:
+    name: Build (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    needs:
+      - quality
+      - test
+      - prepare
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        if: matrix.type == 'go'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ${{ matrix.path }}/go.mod
+
+      - name: Setup .NET
+        if: matrix.type == 'dotnet'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Build artifact (Go)
+        if: matrix.type == 'go'
+        working-directory: ${{ matrix.path }}
+        shell: bash
+        run: |
+          rm -rf dist
+          mkdir -p dist
+
+          cmd_packages=$(go list ./... | grep '/cmd/' || true)
+          if [[ -n "$cmd_packages" ]]; then
+            while IFS= read -r pkg; do
+              [[ -z "$pkg" ]] && continue
+              bin_name=$(basename "$pkg")
+              go build -o "dist/$bin_name" "$pkg"
+            done <<< "$cmd_packages"
+          else
+            go build -o "dist/${{ matrix.name }}" .
+          fi
+
+          tar -czf "${{ matrix.name }}-build.tgz" -C dist .
+
+      - name: Build artifact (.NET)
+        if: matrix.type == 'dotnet'
+        shell: bash
+        run: |
+          rm -rf "${{ matrix.path }}/dist"
+          mkdir -p "${{ matrix.path }}/dist"
+
+          while IFS= read -r project; do
+            [[ -z "$project" ]] && continue
+            project_name=$(basename "${project%.*}")
+            dotnet publish "$project" --configuration Release --output "${{ matrix.path }}/dist/$project_name"
+          done < <(find "${{ matrix.path }}" -name '*.csproj' -type f)
+
+          tar -czf "${{ matrix.name }}-build.tgz" -C "${{ matrix.path }}/dist" .
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}-build
+          path: ${{ matrix.name }}-build.tgz
+          if-no-files-found: error
+
+  deploy-mock:
+    name: Deploy (Mock)
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Mock deployment
+        run: |
+          echo "Deployment stage placeholder."
+          echo "Artifacts available for real deployment integration:"
+          find artifacts -type f -name '*.tgz' -print
