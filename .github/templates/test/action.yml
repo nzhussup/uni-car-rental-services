@@ -1,0 +1,50 @@
+name: Unit tests
+description: Run unit tests for Go and .NET services
+inputs:
+  serviceName:
+    required: true
+    description: Logical service name
+  servicePath:
+    required: true
+    description: Service directory path
+  serviceType:
+    required: true
+    description: go or dotnet
+  solution:
+    required: false
+    default: ""
+    description: Dotnet solution path
+  project:
+    required: false
+    default: ""
+    description: Dotnet project fallback path
+runs:
+  using: composite
+  steps:
+    - name: Setup Go
+      if: inputs.serviceType == 'go'
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: ${{ inputs.servicePath }}/go.mod
+
+    - name: Setup .NET
+      if: inputs.serviceType == 'dotnet'
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 9.0.x
+
+    - name: Unit tests (Go)
+      if: inputs.serviceType == 'go'
+      shell: bash
+      working-directory: ${{ inputs.servicePath }}
+      run: go test ./... -v
+
+    - name: Unit tests (.NET)
+      if: inputs.serviceType == 'dotnet'
+      shell: bash
+      run: |
+        target="${{ inputs.solution }}"
+        if [[ -z "$target" ]]; then
+          target="${{ inputs.project }}"
+        fi
+        dotnet test "$target" --configuration Release --verbosity normal
