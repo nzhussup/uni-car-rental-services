@@ -1,0 +1,8 @@
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:cur="http://example.com/currencyconverter">
+  <soapenv:Body>
+    <cur:GetExchangeRateRequest>
+      <FromCurrency>USD</FromCurrency>
+      <ToCurrency>CHF</ToCurrency>
+    </cur:GetExchangeRateRequest>
+  </soapenv:Body>
+</soapenv:Envelope>

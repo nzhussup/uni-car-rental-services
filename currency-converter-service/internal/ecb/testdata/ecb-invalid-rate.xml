@@ -1,0 +1,7 @@
+<Envelope>
+  <Cube>
+    <Cube time="2026-03-02">
+      <Cube currency="USD" rate="not-a-number" />
+    </Cube>
+  </Cube>
+</Envelope>

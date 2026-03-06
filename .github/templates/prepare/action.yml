@@ -1,0 +1,18 @@
+name: Prepare matrix
+description: Generate service matrix from .github/ci/services.json
+outputs:
+  matrix:
+    description: Service matrix JSON
+    value: ${{ steps.generate.outputs.matrix }}
+runs:
+  using: composite
+  steps:
+    - name: Generate matrix
+      id: generate
+      shell: bash
+      run: |
+        python3 .github/scripts/generate_ci_matrix.py \
+          --config .github/ci/services.json \
+          --repo-root "$GITHUB_WORKSPACE" \
+          --repo-name "${{ github.repository }}" \
+          >> "$GITHUB_OUTPUT"

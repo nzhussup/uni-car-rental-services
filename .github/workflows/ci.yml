@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    name: Prepare Service Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.prepare.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare matrix
+        id: prepare
+        uses: ./.github/templates/prepare
+
+  quality:
+    name: Quality (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run quality template
+        uses: ./.github/templates/quality
+        with:
+          serviceName: ${{ matrix.name }}
+          servicePath: ${{ matrix.path }}
+          serviceType: ${{ matrix.type }}
+          solution: ${{ matrix.solution }}
+          project: ${{ matrix.project }}
+
+  test:
+    name: Test (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run test template
+        uses: ./.github/templates/test
+        with:
+          serviceName: ${{ matrix.name }}
+          servicePath: ${{ matrix.path }}
+          serviceType: ${{ matrix.type }}
+          solution: ${{ matrix.solution }}
+          project: ${{ matrix.project }}
+
+  build:
+    name: Build (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    needs:
+      - quality
+      - test
+      - prepare
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run build template
+        uses: ./.github/templates/build
+        with:
+          serviceName: ${{ matrix.name }}
+          servicePath: ${{ matrix.path }}
+          serviceType: ${{ matrix.type }}
+
+  deploy-mock:
+    name: Deploy (Mock)
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run deploy template
+        uses: ./.github/templates/deploy

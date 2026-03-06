@@ -1,0 +1,58 @@
+name: Quality checks
+description: Run lint checks for Go and .NET services
+inputs:
+  serviceName:
+    required: true
+    description: Logical service name
+  servicePath:
+    required: true
+    description: Service directory path
+  serviceType:
+    required: true
+    description: go or dotnet
+  solution:
+    required: false
+    default: ""
+    description: Dotnet solution path
+  project:
+    required: false
+    default: ""
+    description: Dotnet project fallback path
+runs:
+  using: composite
+  steps:
+    - name: Setup Go
+      if: inputs.serviceType == 'go'
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: ${{ inputs.servicePath }}/go.mod
+
+    - name: Setup .NET
+      if: inputs.serviceType == 'dotnet'
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 9.0.x
+
+    - name: Install golangci-lint (Go)
+      if: inputs.serviceType == 'go'
+      shell: bash
+      run: |
+        mkdir -p "$RUNNER_TEMP/bin"
+        echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+        GOBIN="$RUNNER_TEMP/bin" go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8
+
+    - name: Lint (Go)
+      if: inputs.serviceType == 'go'
+      shell: bash
+      working-directory: ${{ inputs.servicePath }}
+      run: golangci-lint run ./...
+
+    - name: Lint (.NET)
+      if: inputs.serviceType == 'dotnet'
+      shell: bash
+      run: |
+        target="${{ inputs.solution }}"
+        if [[ -z "$target" ]]; then
+          target="${{ inputs.project }}"
+        fi
+        dotnet format "$target" --verify-no-changes --verbosity diagnostic

@@ -1,0 +1,92 @@
+package ecb
+
+import (
+	"context"
+	"encoding/xml"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+)
+
+type Client struct {
+	feedURL    string
+	httpClient *http.Client
+}
+
+func NewClient(feedURL string, httpClient *http.Client) *Client {
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: 10 * time.Second}
+	}
+
+	return &Client{
+		feedURL:    feedURL,
+		httpClient: httpClient,
+	}
+}
+
+func (c *Client) FetchRates(ctx context.Context) (RatesData, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.feedURL, nil)
+	if err != nil {
+		return RatesData{}, fmt.Errorf("create ECB request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return RatesData{}, fmt.Errorf("fetch ECB feed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return RatesData{}, fmt.Errorf("ECB feed returned status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return RatesData{}, fmt.Errorf("read ECB feed body: %w", err)
+	}
+
+	return ParseRatesXML(body, c.feedURL)
+}
+
+func ParseRatesXML(data []byte, source string) (RatesData, error) {
+	var doc envelope
+	if err := xml.Unmarshal(data, &doc); err != nil {
+		return RatesData{}, fmt.Errorf("parse ECB XML: %w", err)
+	}
+
+	if doc.Cube.Daily.Time == "" {
+		return RatesData{}, errors.New("ECB XML missing daily rate timestamp")
+	}
+
+	rates := map[string]float64{"EUR": 1.0}
+	for _, r := range doc.Cube.Daily.Rates {
+		currency := strings.ToUpper(strings.TrimSpace(r.Currency))
+		if currency == "" {
+			return RatesData{}, errors.New("ECB XML contains empty currency code")
+		}
+
+		rate, err := strconv.ParseFloat(strings.TrimSpace(r.Rate), 64)
+		if err != nil {
+			return RatesData{}, fmt.Errorf("invalid ECB rate for %s: %w", currency, err)
+		}
+		if rate <= 0 {
+			return RatesData{}, fmt.Errorf("non-positive ECB rate for %s", currency)
+		}
+
+		rates[currency] = rate
+	}
+
+	if len(rates) == 1 {
+		return RatesData{}, errors.New("ECB XML contains no exchange rates")
+	}
+
+	return RatesData{
+		Date:   doc.Cube.Daily.Time,
+		Source: source,
+		Rates:  rates,
+	}, nil
+}
