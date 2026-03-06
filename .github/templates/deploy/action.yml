@@ -1,0 +1,16 @@
+name: Deploy mock
+description: Mock deployment using generated artifacts
+runs:
+  using: composite
+  steps:
+    - name: Download all build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Mock deployment
+      shell: bash
+      run: |
+        echo "Deployment stage placeholder."
+        echo "Artifacts available for real deployment integration:"
+        find artifacts -type f -name '*.tgz' -print

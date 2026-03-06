@@ -1,0 +1,8 @@
+{
+    "services": [
+        {
+            "name": "currency-converter-service",
+            "path": "currency-converter-service"
+        }
+    ]
+}

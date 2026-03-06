@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/xml"
 	"errors"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -214,13 +213,4 @@ func (h *Handler) writeXMLEnvelope(w http.ResponseWriter, statusCode int, envelo
 	w.WriteHeader(statusCode)
 	_, _ = w.Write([]byte(xml.Header))
 	_, _ = w.Write(xmlBytes)
-}
-
-func (h *Handler) parseSOAPRequest(body []byte) (*requestEnvelope, error) {
-	var envelope requestEnvelope
-	if err := xml.Unmarshal(body, &envelope); err != nil {
-		return nil, fmt.Errorf("parse SOAP envelope: %w", err)
-	}
-
-	return &envelope, nil
 }
