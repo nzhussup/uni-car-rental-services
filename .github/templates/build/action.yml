@@ -36,4 +36,3 @@ runs:
         push: true
         tags: |
           ghcr.io/timmy-2003/${{ inputs.serviceName }}:latest
-          ghcr.io/timmy-2003/${{ inputs.serviceName }}:${{ github.sha }}
