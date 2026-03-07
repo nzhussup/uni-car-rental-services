@@ -55,6 +55,7 @@ secrets.*
 bin/
 dist/
 build/
+!.github/templates/build/
 
 # test / coverage
 *.test
