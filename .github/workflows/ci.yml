@@ -70,9 +70,7 @@ jobs:
       - quality
       - test
       - prepare
-    if:
-      github.event_name == 'push' && (github.ref == 'refs/heads/main' ||
-      github.ref == 'refs/heads/car-crud')
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main')
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
