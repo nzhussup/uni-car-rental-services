@@ -21,9 +21,7 @@
       - carrental-network
         
   car-rental-service:
-    build:
-      context: .
-      dockerfile: CarRentalService/Dockerfile
+    image: ghcr.io/timmy-2003/car-rental-service:latest
     container_name: car-rental-service
     restart: unless-stopped
     environment:
