@@ -1,8 +1,7 @@
-﻿using CarRentalService.Data;
-using CarRentalService.Models;
+using CarRentalService.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace CarRentalService.Repositories;
+namespace CarRentalService.Data.Repositories;
 
 public class CarRepository(CarRentalDbContext context) : ICarRepository
 {
@@ -25,12 +24,18 @@ public class CarRepository(CarRentalDbContext context) : ICarRepository
 
     public async Task<Car?> UpdateAsync(Car car)
     {
-        if (!await context.Cars.AnyAsync(c => c.Id == car.Id))
+        var existingCar = await context.Cars.FindAsync(car.Id);
+        if (existingCar == null)
             return null;
 
-        context.Cars.Update(car);
+        context.Entry(existingCar).CurrentValues.SetValues(car);
         await context.SaveChangesAsync();
-        return car;
+        return existingCar;
+    }
+
+    public async Task SaveChangesAsync()
+    {
+        await context.SaveChangesAsync();
     }
 
     public async Task<bool> DeleteAsync(int id)

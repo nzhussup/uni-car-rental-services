@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CarRentalService", "CarRent
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CarRentalService.Tests", "CarRentalService.Tests\CarRentalService.Tests.csproj", "{B819C1F4-2A84-4A0B-BB68-8AFC206A0D53}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CarRentalService.Data", "CarRentalService.Data\CarRentalService.Data.csproj", "{73300E0A-F60F-4482-BAA5-6FFD50B7AEB4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -38,6 +40,18 @@ Global
 		{B819C1F4-2A84-4A0B-BB68-8AFC206A0D53}.Release|x64.Build.0 = Release|Any CPU
 		{B819C1F4-2A84-4A0B-BB68-8AFC206A0D53}.Release|x86.ActiveCfg = Release|Any CPU
 		{B819C1F4-2A84-4A0B-BB68-8AFC206A0D53}.Release|x86.Build.0 = Release|Any CPU
+		{73300E0A-F60F-4482-BAA5-6FFD50B7AEB4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{73300E0A-F60F-4482-BAA5-6FFD50B7AEB4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{73300E0A-F60F-4482-BAA5-6FFD50B7AEB4}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{73300E0A-F60F-4482-BAA5-6FFD50B7AEB4}.Debug|x64.Build.0 = Debug|Any CPU
+		{73300E0A-F60F-4482-BAA5-6FFD50B7AEB4}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{73300E0A-F60F-4482-BAA5-6FFD50B7AEB4}.Debug|x86.Build.0 = Debug|Any CPU
+		{73300E0A-F60F-4482-BAA5-6FFD50B7AEB4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{73300E0A-F60F-4482-BAA5-6FFD50B7AEB4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{73300E0A-F60F-4482-BAA5-6FFD50B7AEB4}.Release|x64.ActiveCfg = Release|Any CPU
+		{73300E0A-F60F-4482-BAA5-6FFD50B7AEB4}.Release|x64.Build.0 = Release|Any CPU
+		{73300E0A-F60F-4482-BAA5-6FFD50B7AEB4}.Release|x86.ActiveCfg = Release|Any CPU
+		{73300E0A-F60F-4482-BAA5-6FFD50B7AEB4}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

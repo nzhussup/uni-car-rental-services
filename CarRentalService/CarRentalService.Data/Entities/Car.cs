@@ -1,11 +1,11 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace CarRentalService.Models;
+namespace CarRentalService.Data.Entities;
 
 public class Car
 {
-    public int Id { get; init; }
+    public int Id { get; set; }
 
     [Required][MaxLength(100)] public required string Make { get; init; }
 

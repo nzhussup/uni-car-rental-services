@@ -1,5 +1,5 @@
 using CarRentalService.Controllers;
-using CarRentalService.Models;
+using CarRentalService.Data.Entities;
 using CarRentalService.Models.DTOs;
 using CarRentalService.Services;
 using FluentAssertions;
@@ -10,48 +10,14 @@ namespace CarRentalService.Tests.Controllers;
 
 public class CarsControllerTests
 {
-    private readonly Mock<ICarService> _mockCarService;
     private readonly CarsController _controller;
+    private readonly Mock<ICarService> _mockCarService;
 
     public CarsControllerTests()
     {
         _mockCarService = new Mock<ICarService>();
         _controller = new CarsController(_mockCarService.Object);
     }
-
-    #region GetAllCars Tests
-
-    [Fact]
-    public async Task GetAllCars_ShouldReturnOkWithCars_WhenCarsExist()
-    {
-        var cars = new List<CarDto>
-        {
-            new() { Id = 1, Make = "Toyota", Model = "Camry", Year = 2022, PriceInUsd = 25000, Status = CarStatus.Available },
-            new() { Id = 2, Make = "Honda", Model = "Civic", Year = 2023, PriceInUsd = 23000, Status = CarStatus.Rented }
-        };
-        _mockCarService.Setup(service => service.GetAllCarsAsync()).ReturnsAsync(cars);
-
-        var result = await _controller.GetAllCars();
-
-        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
-        var returnedCars = okResult.Value.Should().BeAssignableTo<IEnumerable<CarDto>>().Subject;
-        returnedCars.Should().HaveCount(2);
-        _mockCarService.Verify(service => service.GetAllCarsAsync(), Times.Once);
-    }
-
-    [Fact]
-    public async Task GetAllCars_ShouldReturnOkWithEmptyList_WhenNoCarsExist()
-    {
-        _mockCarService.Setup(service => service.GetAllCarsAsync()).ReturnsAsync(new List<CarDto>());
-
-        var result = await _controller.GetAllCars();
-
-        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
-        var returnedCars = okResult.Value.Should().BeAssignableTo<IEnumerable<CarDto>>().Subject;
-        returnedCars.Should().BeEmpty();
-    }
-
-    #endregion
 
     #region GetCarById Tests
 
@@ -78,16 +44,59 @@ public class CarsControllerTests
         _mockCarService.Verify(service => service.GetCarByIdAsync(1), Times.Once);
     }
 
+    #endregion
+
+    #region DeleteCar Tests
+
     [Fact]
-    public async Task GetCarById_ShouldReturnNotFound_WhenCarDoesNotExist()
+    public async Task DeleteCar_ShouldReturnNoContent_WhenCarIsDeleted()
     {
-        _mockCarService.Setup(service => service.GetCarByIdAsync(999)).ReturnsAsync((CarDto?)null);
+        _mockCarService.Setup(service => service.DeleteCarAsync(1)).ReturnsAsync(true);
 
-        var result = await _controller.GetCarById(999);
+        var result = await _controller.DeleteCar(1);
 
-        var notFoundResult = result.Result.Should().BeOfType<NotFoundObjectResult>().Subject;
-        notFoundResult.Value.Should().Be("Car with ID 999 not found");
-        _mockCarService.Verify(service => service.GetCarByIdAsync(999), Times.Once);
+        result.Should().BeOfType<NoContentResult>();
+        _mockCarService.Verify(service => service.DeleteCarAsync(1), Times.Once);
+    }
+
+    #endregion
+
+    #region GetAllCars Tests
+
+    [Fact]
+    public async Task GetAllCars_ShouldReturnOkWithCars_WhenCarsExist()
+    {
+        var cars = new List<CarDto>
+        {
+            new()
+            {
+                Id = 1, Make = "Toyota", Model = "Camry", Year = 2022, PriceInUsd = 25000, Status = CarStatus.Available
+            },
+            new()
+            {
+                Id = 2, Make = "Honda", Model = "Civic", Year = 2023, PriceInUsd = 23000, Status = CarStatus.Rented
+            }
+        };
+        _mockCarService.Setup(service => service.GetAllCarsAsync()).ReturnsAsync(cars);
+
+        var result = await _controller.GetAllCars();
+
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var returnedCars = okResult.Value.Should().BeAssignableTo<IEnumerable<CarDto>>().Subject;
+        returnedCars.Should().HaveCount(2);
+        _mockCarService.Verify(service => service.GetAllCarsAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAllCars_ShouldReturnOkWithEmptyList_WhenNoCarsExist()
+    {
+        _mockCarService.Setup(service => service.GetAllCarsAsync()).ReturnsAsync(new List<CarDto>());
+
+        var result = await _controller.GetAllCars();
+
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var returnedCars = okResult.Value.Should().BeAssignableTo<IEnumerable<CarDto>>().Subject;
+        returnedCars.Should().BeEmpty();
     }
 
     #endregion
@@ -184,26 +193,6 @@ public class CarsControllerTests
     }
 
     [Fact]
-    public async Task UpdateCar_ShouldReturnNotFound_WhenCarDoesNotExist()
-    {
-        var updateCarDto = new UpdateCarDto
-        {
-            Make = "Toyota",
-            Model = "Camry",
-            Year = 2022,
-            PriceInUsd = 25000
-        };
-
-        _mockCarService.Setup(service => service.UpdateCarAsync(999, updateCarDto)).ReturnsAsync((CarDto?)null);
-
-        var result = await _controller.UpdateCar(999, updateCarDto);
-
-        var notFoundResult = result.Result.Should().BeOfType<NotFoundObjectResult>().Subject;
-        notFoundResult.Value.Should().Be("Car with ID 999 not found");
-        _mockCarService.Verify(service => service.UpdateCarAsync(999, updateCarDto), Times.Once);
-    }
-
-    [Fact]
     public async Task UpdateCar_ShouldReturnBadRequest_WhenModelStateIsInvalid()
     {
         var updateCarDto = new UpdateCarDto
@@ -218,34 +207,8 @@ public class CarsControllerTests
         var result = await _controller.UpdateCar(1, updateCarDto);
 
         result.Result.Should().BeOfType<BadRequestObjectResult>();
-        _mockCarService.Verify(service => service.UpdateCarAsync(It.IsAny<int>(), It.IsAny<UpdateCarDto>()), Times.Never);
-    }
-
-    #endregion
-
-    #region DeleteCar Tests
-
-    [Fact]
-    public async Task DeleteCar_ShouldReturnNoContent_WhenCarIsDeleted()
-    {
-        _mockCarService.Setup(service => service.DeleteCarAsync(1)).ReturnsAsync(true);
-
-        var result = await _controller.DeleteCar(1);
-
-        result.Should().BeOfType<NoContentResult>();
-        _mockCarService.Verify(service => service.DeleteCarAsync(1), Times.Once);
-    }
-
-    [Fact]
-    public async Task DeleteCar_ShouldReturnNotFound_WhenCarDoesNotExist()
-    {
-        _mockCarService.Setup(service => service.DeleteCarAsync(999)).ReturnsAsync(false);
-
-        var result = await _controller.DeleteCar(999);
-
-        var notFoundResult = result.Should().BeOfType<NotFoundObjectResult>().Subject;
-        notFoundResult.Value.Should().Be("Car with ID 999 not found");
-        _mockCarService.Verify(service => service.DeleteCarAsync(999), Times.Once);
+        _mockCarService.Verify(service => service.UpdateCarAsync(It.IsAny<int>(), It.IsAny<UpdateCarDto>()),
+            Times.Never);
     }
 
     #endregion
@@ -278,19 +241,6 @@ public class CarsControllerTests
     }
 
     [Fact]
-    public async Task UpdateCarStatus_ShouldReturnNotFound_WhenCarDoesNotExist()
-    {
-        var updateStatusDto = new UpdateCarStatusDto { Status = CarStatus.Rented };
-        _mockCarService.Setup(service => service.SetCarStatusAsync(999, CarStatus.Rented)).ReturnsAsync((CarDto?)null);
-
-        var result = await _controller.UpdateCarStatus(999, updateStatusDto);
-
-        var notFoundResult = result.Result.Should().BeOfType<NotFoundObjectResult>().Subject;
-        notFoundResult.Value.Should().Be("Car with ID 999 not found");
-        _mockCarService.Verify(service => service.SetCarStatusAsync(999, CarStatus.Rented), Times.Once);
-    }
-
-    [Fact]
     public async Task UpdateCarStatus_ShouldReturnBadRequest_WhenModelStateIsInvalid()
     {
         var updateStatusDto = new UpdateCarStatusDto { Status = CarStatus.Rented };
@@ -299,7 +249,8 @@ public class CarsControllerTests
         var result = await _controller.UpdateCarStatus(1, updateStatusDto);
 
         result.Result.Should().BeOfType<BadRequestObjectResult>();
-        _mockCarService.Verify(service => service.SetCarStatusAsync(It.IsAny<int>(), It.IsAny<CarStatus>()), Times.Never);
+        _mockCarService.Verify(service => service.SetCarStatusAsync(It.IsAny<int>(), It.IsAny<CarStatus>()),
+            Times.Never);
     }
 
     [Theory]
@@ -308,7 +259,6 @@ public class CarsControllerTests
     [InlineData(CarStatus.Maintenance)]
     public async Task UpdateCarStatus_ShouldHandleAllStatuses_WhenCarExists(CarStatus status)
     {
-
         var updateStatusDto = new UpdateCarStatusDto { Status = status };
         var updatedCarDto = new CarDto
         {

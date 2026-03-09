@@ -1,4 +1,6 @@
-﻿namespace CarRentalService.Models.DTOs;
+﻿using CarRentalService.Data.Entities;
+
+namespace CarRentalService.Models.DTOs;
 
 public class CarDto
 {

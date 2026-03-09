@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using CarRentalService.Data.Entities;
 
 namespace CarRentalService.Models.DTOs;
 

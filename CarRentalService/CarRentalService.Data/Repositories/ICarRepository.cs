@@ -1,6 +1,6 @@
-﻿using CarRentalService.Models;
+using CarRentalService.Data.Entities;
 
-namespace CarRentalService.Repositories;
+namespace CarRentalService.Data.Repositories;
 
 public interface ICarRepository
 {
@@ -9,4 +9,5 @@ public interface ICarRepository
     Task<Car> AddAsync(Car car);
     Task<Car?> UpdateAsync(Car car);
     Task<bool> DeleteAsync(int id);
+    Task SaveChangesAsync();
 }

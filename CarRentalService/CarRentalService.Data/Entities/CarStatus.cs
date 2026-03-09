@@ -1,4 +1,4 @@
-﻿namespace CarRentalService.Models;
+namespace CarRentalService.Data.Entities;
 
 public enum CarStatus
 {

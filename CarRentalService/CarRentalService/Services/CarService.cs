@@ -1,77 +1,59 @@
-﻿using CarRentalService.Models;
+﻿using AutoMapper;
+using CarRentalService.Data.Entities;
+using CarRentalService.Data.Repositories;
+using CarRentalService.Exceptions;
 using CarRentalService.Models.DTOs;
-using CarRentalService.Repositories;
 
 namespace CarRentalService.Services;
 
-public class CarService(ICarRepository carRepository) : ICarService
+public class CarService(ICarRepository carRepository, IMapper mapper) : ICarService
 {
     public async Task<IEnumerable<CarDto>> GetAllCarsAsync()
     {
         var cars = await carRepository.GetAllAsync();
-        return cars.Select(MapToDto);
+        return mapper.Map<IEnumerable<CarDto>>(cars);
     }
 
-    public async Task<CarDto?> GetCarByIdAsync(int id)
+    public async Task<CarDto> GetCarByIdAsync(int id)
     {
         var car = await carRepository.GetByIdAsync(id);
-        return car == null ? null : MapToDto(car);
+        return car == null ? throw new NotFoundException("Car", id) : mapper.Map<CarDto>(car);
     }
 
     public async Task<CarDto> CreateCarAsync(CreateCarDto createCarDto)
     {
-        var car = new Car
-        {
-            Make = createCarDto.Make,
-            Model = createCarDto.Model,
-            Year = createCarDto.Year,
-            PriceInUsd = createCarDto.PriceInUsd
-        };
-
+        var car = mapper.Map<Car>(createCarDto);
         var createdCar = await carRepository.AddAsync(car);
-        return MapToDto(createdCar);
+        return mapper.Map<CarDto>(createdCar);
     }
 
-    public async Task<CarDto?> UpdateCarAsync(int id, UpdateCarDto updateCarDto)
+    public async Task<CarDto> UpdateCarAsync(int id, UpdateCarDto updateCarDto)
     {
-        var car = new Car
-        {
-            Id = id,
-            Make = updateCarDto.Make,
-            Model = updateCarDto.Model,
-            Year = updateCarDto.Year,
-            PriceInUsd = updateCarDto.PriceInUsd
-        };
+        var existingCar = await carRepository.GetByIdAsync(id);
+        if (existingCar == null)
+            throw new NotFoundException("Car", id);
+
+        var car = mapper.Map<Car>(updateCarDto);
+        car.Id = id;
 
         var updatedCar = await carRepository.UpdateAsync(car);
-        return updatedCar == null ? null : MapToDto(updatedCar);
+        return mapper.Map<CarDto>(updatedCar);
     }
 
     public async Task<bool> DeleteCarAsync(int id)
     {
-        return await carRepository.DeleteAsync(id);
+        var result = await carRepository.DeleteAsync(id);
+        return !result ? throw new NotFoundException("Car", id) : true;
     }
 
-    public async Task<CarDto?> SetCarStatusAsync(int id, CarStatus status)
+    public async Task<CarDto> SetCarStatusAsync(int id, CarStatus status)
     {
         var car = await carRepository.GetByIdAsync(id);
-        if (car == null) return null;
+        if (car == null)
+            throw new NotFoundException("Car", id);
 
         car.Status = status;
-        var updatedCar = await carRepository.UpdateAsync(car);
-        return updatedCar == null ? null : MapToDto(updatedCar);
-    }
-
-    private static CarDto MapToDto(Car car)
-    {
-        return new CarDto
-        {
-            Id = car.Id,
-            Make = car.Make,
-            Model = car.Model,
-            Year = car.Year,
-            PriceInUsd = car.PriceInUsd,
-            Status = car.Status
-        };
+        await carRepository.SaveChangesAsync();
+        return mapper.Map<CarDto>(car);
     }
 }

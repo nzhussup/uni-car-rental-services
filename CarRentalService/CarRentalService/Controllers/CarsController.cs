@@ -23,7 +23,6 @@ public class CarsController(ICarService carService) : ControllerBase
     public async Task<ActionResult<CarDto>> GetCarById(int id)
     {
         var car = await carService.GetCarByIdAsync(id);
-        if (car == null) return NotFound($"Car with ID {id} not found");
         return Ok(car);
     }
 
@@ -49,8 +48,6 @@ public class CarsController(ICarService carService) : ControllerBase
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
         var updatedCar = await carService.UpdateCarAsync(id, updateCarDto);
-        if (updatedCar == null) return NotFound($"Car with ID {id} not found");
-
         return Ok(updatedCar);
     }
 
@@ -60,9 +57,7 @@ public class CarsController(ICarService carService) : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteCar(int id)
     {
-        var result = await carService.DeleteCarAsync(id);
-        if (!result) return NotFound($"Car with ID {id} not found");
-
+        await carService.DeleteCarAsync(id);
         return NoContent();
     }
 
@@ -76,8 +71,6 @@ public class CarsController(ICarService carService) : ControllerBase
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
         var car = await carService.SetCarStatusAsync(id, updateStatusDto.Status);
-        if (car == null) return NotFound($"Car with ID {id} not found");
-
         return Ok(car);
     }
 }
