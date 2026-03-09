@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CarRentalService.Controllers;
 
 [ApiController]
-[Route("Api/[controller]")]
+[Route("api/cars")]
 public class CarsController(ICarService carService) : ControllerBase
 {
     [HttpGet]
