@@ -284,16 +284,15 @@ public class CarServiceTests
         };
 
         _mockCarRepository.Setup(repo => repo.GetByIdAsync(1)).ReturnsAsync(existingCar);
-        _mockCarRepository.Setup(repo => repo.UpdateAsync(It.IsAny<Car>())).ReturnsAsync(updatedCar);
+        _mockCarRepository.Setup(repo => repo.SaveChangesAsync()).Returns(Task.CompletedTask);
 
         var result = await _carService.SetCarStatusAsync(1, CarStatus.Rented);
 
         result.Should().NotBeNull();
         result!.Status.Should().Be(CarStatus.Rented);
+        existingCar.Status.Should().Be(CarStatus.Rented);
         _mockCarRepository.Verify(repo => repo.GetByIdAsync(1), Times.Once);
-        _mockCarRepository.Verify(repo => repo.UpdateAsync(It.Is<Car>(c =>
-            c.Id == 1 && c.Status == CarStatus.Rented
-        )), Times.Once);
+        _mockCarRepository.Verify(repo => repo.SaveChangesAsync(), Times.Once);
     }
 
     [Fact]
@@ -335,12 +334,13 @@ public class CarServiceTests
         };
 
         _mockCarRepository.Setup(repo => repo.GetByIdAsync(1)).ReturnsAsync(existingCar);
-        _mockCarRepository.Setup(repo => repo.UpdateAsync(It.IsAny<Car>())).ReturnsAsync(updatedCar);
+        _mockCarRepository.Setup(repo => repo.SaveChangesAsync()).Returns(Task.CompletedTask);
 
         var result = await _carService.SetCarStatusAsync(1, newStatus);
 
         result.Should().NotBeNull();
         result!.Status.Should().Be(newStatus);
+        existingCar.Status.Should().Be(newStatus); // Verify the entity was modified
     }
 
     #endregion
