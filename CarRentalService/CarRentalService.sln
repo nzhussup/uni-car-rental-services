@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CarRentalService", "CarRentalService\CarRentalService.csproj", "{2EC8823B-926D-4CE4-B3DA-9DF536F8B94B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CarRentalService.Web", "CarRentalService.Web\CarRentalService.Web.csproj", "{2EC8823B-926D-4CE4-B3DA-9DF536F8B94B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CarRentalService.Tests", "CarRentalService.Tests\CarRentalService.Tests.csproj", "{B819C1F4-2A84-4A0B-BB68-8AFC206A0D53}"
 EndProject
