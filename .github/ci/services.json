@@ -6,7 +6,7 @@
     },
     {
       "name": "currency-converter-service",
-      "path": "currency-converter-service"
+      "path": "CurrencyConverterService"
     }
   ]
 }

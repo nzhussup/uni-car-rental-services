@@ -20,7 +20,7 @@ Basic Auth credentials (v1 hardcoded):
 
 ## Run
 
-From `currency-converter-service/`:
+From `CurrencyConverterService/`:
 
 ```bash
 go run ./cmd/server
