@@ -1,8 +1,12 @@
 {
-    "services": [
-        {
-            "name": "currency-converter-service",
-            "path": "currency-converter-service"
-        }
-    ]
+  "services": [
+    {
+      "name": "car-rental-service",
+      "path": "CarRentalService"
+    },
+    {
+      "name": "currency-converter-service",
+      "path": "CurrencyConverterService"
+    }
+  ]
 }
