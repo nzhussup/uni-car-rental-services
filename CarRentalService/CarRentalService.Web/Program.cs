@@ -37,7 +37,16 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-app.Services.CreateScope().ServiceProvider.GetRequiredService<CarRentalDbContext>().Database.Migrate();
+var skipDbMigration = app.Configuration.GetValue<bool>("SkipDbMigration")
+                      || string.Equals(
+                          Environment.GetEnvironmentVariable("SKIP_DB_MIGRATION"),
+                          "true",
+                          StringComparison.OrdinalIgnoreCase);
+
+if (!skipDbMigration)
+{
+    app.Services.CreateScope().ServiceProvider.GetRequiredService<CarRentalDbContext>().Database.Migrate();
+}
 
 app.UseExceptionHandler();
 
