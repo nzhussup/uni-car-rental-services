@@ -12,8 +12,7 @@ inputs:
     description: go or dotnet
   registryToken:
     required: true
-    description:
-      GitHub token with write:packages permission (use PAT, not GITHUB_TOKEN)
+    description: GitHub token with write:packages permission (use PAT, not GITHUB_TOKEN)
 runs:
   using: composite
   steps:
@@ -27,6 +26,14 @@ runs:
         username: ${{ github.repository_owner }}
         password: ${{ inputs.registryToken }}
 
+    - name: Extract Docker metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ghcr.io/${{ github.repository_owner }}/${{ inputs.serviceName }}
+        tags: |
+          type=raw,value=latest
+
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
@@ -34,5 +41,4 @@ runs:
         file: ${{ inputs.servicePath }}/Dockerfile
         platforms: linux/amd64,linux/arm64
         push: true
-        tags: |
-          ghcr.io/timmy-2003/${{ inputs.serviceName }}:latest
+        tags: ${{ steps.meta.outputs.tags }}
