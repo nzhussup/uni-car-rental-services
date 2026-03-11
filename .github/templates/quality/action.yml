@@ -23,15 +23,16 @@ runs:
   steps:
     - name: Setup Go
       if: inputs.serviceType == 'go'
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version-file: ${{ inputs.servicePath }}/go.mod
+        cache: false
 
     - name: Setup .NET
       if: inputs.serviceType == 'dotnet'
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v5
       with:
-        dotnet-version: 9.0.x
+        dotnet-version: 10.0.x
 
     - name: Install golangci-lint (Go)
       if: inputs.serviceType == 'go'
@@ -45,6 +46,8 @@ runs:
       if: inputs.serviceType == 'go'
       shell: bash
       working-directory: ${{ inputs.servicePath }}
+      env:
+        GOFLAGS: -buildvcs=false
       run: golangci-lint run ./...
 
     - name: Lint (.NET)
