@@ -41,6 +41,19 @@
     networks:
       - carrental-network
 
+  db-seeder:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    depends_on:
+      mssql:
+        condition: service_healthy
+    volumes:
+      - ./seed.sql:/seed.sql:ro
+      - ./seed.sh:/seed.sh:ro
+    entrypoint: ["/bin/bash", "/seed.sh"]
+    restart: "no"
+    networks:
+      - carrental-network
+
   currency-converter-service:
     build:
       context: ../CurrencyConverterService
