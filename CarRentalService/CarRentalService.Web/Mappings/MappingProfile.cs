@@ -11,5 +11,7 @@ public class MappingProfile : Profile
         CreateMap<Car, CarDto>();
         CreateMap<CreateCarDto, Car>();
         CreateMap<UpdateCarDto, Car>();
+        CreateMap<Booking, BookingDto>();
+        CreateMap<CreateBookingDto, Booking>();
     }
 }

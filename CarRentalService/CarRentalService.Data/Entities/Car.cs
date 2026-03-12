@@ -18,4 +18,6 @@ public class Car
     public decimal PriceInUsd { get; init; }
 
     [Required] public CarStatus Status { get; set; } = CarStatus.Available;
+
+    public HashSet<Booking> CarBookings { get; set; } = new HashSet<Booking>();
 }

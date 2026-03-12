@@ -14,12 +14,17 @@ public class GlobalExceptionHandlerMiddleware(ILogger<GlobalExceptionHandlerMidd
         var (statusCode, title) = exception switch
         {
             NotFoundException => (StatusCodes.Status404NotFound, "Resource Not Found"),
+            NotAllowedException => (StatusCodes.Status403Forbidden, "Resource Not Allowed"),
             _ => (StatusCodes.Status500InternalServerError, "An unexpected error occurred")
         };
 
         if (exception is NotFoundException notFoundException)
         {
             logger.LogWarning("Resource not found: {Message}", notFoundException.Message);
+        }
+        else if (exception is NotAllowedException notAllowedException)
+        {
+            logger.LogWarning("Resource not allowed: {Message}", notAllowedException.Message);
         }
         else
         {

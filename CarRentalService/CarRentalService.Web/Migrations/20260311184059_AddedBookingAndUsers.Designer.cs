@@ -4,6 +4,7 @@ using CarRentalService.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CarRentalService.Migrations
 {
     [DbContext(typeof(CarRentalDbContext))]
-    partial class CarRentalDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260311184059_AddedBookingAndUsers")]
+    partial class AddedBookingAndUsers
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -48,14 +51,9 @@ namespace CarRentalService.Migrations
                     b.Property<decimal>("TotalCostInUsd")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<long>("UserId")
-                        .HasColumnType("bigint");
-
                     b.HasKey("Id");
 
                     b.HasIndex("CarId");
-
-                    b.HasIndex("UserId");
 
                     b.ToTable("Bookings");
                 });
@@ -123,6 +121,21 @@ namespace CarRentalService.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("CarRentalService.Data.Entities.UserBooking", b =>
+                {
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("BookingId")
+                        .HasColumnType("int");
+
+                    b.HasKey("UserId", "BookingId");
+
+                    b.HasIndex("BookingId");
+
+                    b.ToTable("UserBookings");
+                });
+
             modelBuilder.Entity("CarRentalService.Data.Entities.Booking", b =>
                 {
                     b.HasOne("CarRentalService.Data.Entities.Car", "Car")
@@ -131,15 +144,31 @@ namespace CarRentalService.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("Car");
+                });
+
+            modelBuilder.Entity("CarRentalService.Data.Entities.UserBooking", b =>
+                {
+                    b.HasOne("CarRentalService.Data.Entities.Booking", "Booking")
+                        .WithMany("UserBookings")
+                        .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("CarRentalService.Data.Entities.User", "User")
-                        .WithMany("Bookings")
+                        .WithMany("UserBookings")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Car");
+                    b.Navigation("Booking");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("CarRentalService.Data.Entities.Booking", b =>
+                {
+                    b.Navigation("UserBookings");
                 });
 
             modelBuilder.Entity("CarRentalService.Data.Entities.Car", b =>
@@ -149,7 +178,7 @@ namespace CarRentalService.Migrations
 
             modelBuilder.Entity("CarRentalService.Data.Entities.User", b =>
                 {
-                    b.Navigation("Bookings");
+                    b.Navigation("UserBookings");
                 });
 #pragma warning restore 612, 618
         }
