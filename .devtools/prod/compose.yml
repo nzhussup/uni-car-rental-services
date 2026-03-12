@@ -24,6 +24,19 @@ services:
     networks:
       - carrental-network
 
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    depends_on:
+      mssql:
+        condition: service_healthy
+    volumes:
+      - ./init-prod.sql:/init-prod.sql:ro
+      - ./init-prod.sh:/init-prod.sh:ro
+    entrypoint: ["/bin/bash", "/init-prod.sh"]
+    restart: "no"
+    networks:
+      - carrental-network
+
   car-rental-service:
     image: ghcr.io/timmy-2003/car-rental-service:latest
     container_name: car-rental-service
@@ -45,6 +58,31 @@ services:
     restart: unless-stopped
     ports:
       - "8081:8080"
+    networks:
+      - carrental-network
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    container_name: keycloak
+    restart: unless-stopped
+    command:
+      - start
+      - --http-enabled=true
+      - --hostname=localhost
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: "root"
+      KC_BOOTSTRAP_ADMIN_PASSWORD: "change-me-prod"
+      KC_DB: "mssql"
+      KC_DB_URL: "jdbc:sqlserver://mssql:1433;databaseName=KeycloakDB;encrypt=false"
+      KC_DB_USERNAME: "sa"
+      KC_DB_PASSWORD: "YourStrong!Passw0rd"
+    ports:
+      - "8082:8080"
+    depends_on:
+      mssql:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     networks:
       - carrental-network
 

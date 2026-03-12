@@ -26,7 +26,7 @@
 
   car-rental-service:
     build:
-      context: ../CarRentalService
+      context: ../../CarRentalService
       dockerfile: Dockerfile
     container_name: car-rental-service
     restart: unless-stopped
@@ -56,7 +56,7 @@
 
   currency-converter-service:
     build:
-      context: ../CurrencyConverterService
+      context: ../../CurrencyConverterService
       dockerfile: Dockerfile
     container_name: currency-converter-service
     restart: unless-stopped
@@ -65,8 +65,29 @@
     networks:
       - carrental-network
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    container_name: keycloak
+    restart: unless-stopped
+    command:
+      - start-dev
+      - --http-enabled=true
+      - --hostname-strict=false
+      - --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: "root"
+      KC_BOOTSTRAP_ADMIN_PASSWORD: "root"
+    ports:
+      - "8082:8080"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+      - ./car-rental-dev-realm.json:/opt/keycloak/data/import/car-rental-dev-realm.json:ro
+    networks:
+      - carrental-network
+
 volumes:
   mssql_data:
+  keycloak_data:
 
 networks:
   carrental-network:
