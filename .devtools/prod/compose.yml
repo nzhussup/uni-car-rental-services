@@ -78,6 +78,9 @@ services:
       KC_DB_PASSWORD: "YourStrong!Passw0rd"
     ports:
       - "8082:8080"
+    # Enable this when a production realm is configured to use the custom theme:
+    # volumes:
+    #   - ../keycloak-themes:/opt/keycloak/themes:ro
     depends_on:
       mssql:
         condition: service_healthy

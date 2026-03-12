@@ -82,6 +82,7 @@
     volumes:
       - keycloak_data:/opt/keycloak/data
       - ./car-rental-dev-realm.json:/opt/keycloak/data/import/car-rental-dev-realm.json:ro
+      - ../keycloak-themes:/opt/keycloak/themes:ro
     networks:
       - carrental-network
 
