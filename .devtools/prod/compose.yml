@@ -1,0 +1,97 @@
+services:
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    container_name: mssql_server
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "YourStrong!Passw0rd"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P $$MSSQL_SA_PASSWORD -C -Q 'SELECT 1' || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - carrental-network
+
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    depends_on:
+      mssql:
+        condition: service_healthy
+    volumes:
+      - ./init-prod.sql:/init-prod.sql:ro
+      - ./init-prod.sh:/init-prod.sh:ro
+    entrypoint: ["/bin/bash", "/init-prod.sh"]
+    restart: "no"
+    networks:
+      - carrental-network
+
+  car-rental-service:
+    image: ghcr.io/timmy-2003/car-rental-service:latest
+    container_name: car-rental-service
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Production"
+      ConnectionStrings__DefaultConnection: "Server=mssql,1433;Database=CarRentalDB;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;"
+    ports:
+      - "8080:8080"
+    depends_on:
+      mssql:
+        condition: service_healthy
+    networks:
+      - carrental-network
+
+  currency-converter-service:
+    image: ghcr.io/timmy-2003/currency-converter-service:latest
+    container_name: currency-converter-service
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    networks:
+      - carrental-network
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    container_name: keycloak
+    restart: unless-stopped
+    command:
+      - start
+      - --http-enabled=true
+      - --hostname=localhost
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: "root"
+      KC_BOOTSTRAP_ADMIN_PASSWORD: "change-me-prod"
+      KC_DB: "mssql"
+      KC_DB_URL: "jdbc:sqlserver://mssql:1433;databaseName=KeycloakDB;encrypt=false"
+      KC_DB_USERNAME: "sa"
+      KC_DB_PASSWORD: "YourStrong!Passw0rd"
+    ports:
+      - "8082:8080"
+    # Enable this when a production realm is configured to use the custom theme:
+    # volumes:
+    #   - ../keycloak-themes:/opt/keycloak/themes:ro
+    depends_on:
+      mssql:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    networks:
+      - carrental-network
+
+volumes:
+  mssql_data:
+
+networks:
+  carrental-network:
+    driver: bridge

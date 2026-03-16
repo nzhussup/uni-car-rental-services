@@ -1,0 +1,11 @@
+IF DB_ID('CarRentalDB') IS NULL
+BEGIN
+    CREATE DATABASE CarRentalDB;
+END;
+GO
+
+IF DB_ID('KeycloakDB') IS NULL
+BEGIN
+    CREATE DATABASE KeycloakDB;
+END;
+GO

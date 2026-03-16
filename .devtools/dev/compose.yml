@@ -1,4 +1,4 @@
-services:
+﻿services:
   mssql:
     image: mcr.microsoft.com/mssql/server:2025-latest
     container_name: mssql_server
@@ -25,11 +25,13 @@ services:
       - carrental-network
 
   car-rental-service:
-    image: ghcr.io/timmy-2003/car-rental-service:latest
+    build:
+      context: ../../CarRentalService
+      dockerfile: Dockerfile
     container_name: car-rental-service
     restart: unless-stopped
     environment:
-      ASPNETCORE_ENVIRONMENT: "Production"
+      ASPNETCORE_ENVIRONMENT: "Development"
       ConnectionStrings__DefaultConnection: "Server=mssql,1433;Database=CarRentalDB;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;"
     ports:
       - "8080:8080"
@@ -39,8 +41,23 @@ services:
     networks:
       - carrental-network
 
+  db-seeder:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    depends_on:
+      mssql:
+        condition: service_healthy
+    volumes:
+      - ./seed.sql:/seed.sql:ro
+      - ./seed.sh:/seed.sh:ro
+    entrypoint: ["/bin/bash", "/seed.sh"]
+    restart: "no"
+    networks:
+      - carrental-network
+
   currency-converter-service:
-    image: ghcr.io/timmy-2003/currency-converter-service:latest
+    build:
+      context: ../../CurrencyConverterService
+      dockerfile: Dockerfile
     container_name: currency-converter-service
     restart: unless-stopped
     ports:
@@ -48,8 +65,30 @@ services:
     networks:
       - carrental-network
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    container_name: keycloak
+    restart: unless-stopped
+    command:
+      - start-dev
+      - --http-enabled=true
+      - --hostname-strict=false
+      - --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: "root"
+      KC_BOOTSTRAP_ADMIN_PASSWORD: "root"
+    ports:
+      - "8082:8080"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+      - ./car-rental-dev-realm.json:/opt/keycloak/data/import/car-rental-dev-realm.json:ro
+      - ../keycloak-themes:/opt/keycloak/themes:ro
+    networks:
+      - carrental-network
+
 volumes:
   mssql_data:
+  keycloak_data:
 
 networks:
   carrental-network:
