@@ -4,6 +4,11 @@
 
 The script is generic. It uses the current directory as the target project directory.
 
+It supports:
+
+- .NET ASP.NET Core web projects (Swagger CLI)
+- Go services with Swagger annotations (via `swag` + automatic Swagger2 -> OpenAPI3 conversion)
+
 1. `cd` into your .NET project folder (or solution folder containing one web project).
 2. Run:
 
@@ -27,6 +32,44 @@ Examples:
 
 # from CarRentalService folder
 ../scripts/generate-openapi.sh
+
+# from repository root for Go proxy service
+./scripts/generate-openapi.sh ./RequestProxyService ./RequestProxyService/openapi.yaml
+```
+
+## Generate OpenAPI For All Services + Composite Root Spec
+
+Run from repo root:
+
+```bash
+./scripts/generate-all-openapi.sh
+```
+
+This will:
+
+1. generate per-service `openapi.yaml` for configured services
+2. generate a composite root spec at `./openapi.yaml`
+
+Service selection is controlled by:
+
+- `scripts/openapi-services.json`
+
+Example config:
+
+```json
+{
+  "services": [
+    { "name": "CarRentalService", "enabled": true },
+    { "name": "RequestProxyService", "enabled": true },
+    { "name": "CurrencyConverterService", "enabled": false }
+  ]
+}
+```
+
+You can override config path with:
+
+```bash
+OPENAPI_SERVICES_CONFIG=/path/to/config.json ./scripts/generate-all-openapi.sh
 ```
 
 ## .NET Requirements For OpenAPI Generation

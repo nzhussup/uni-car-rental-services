@@ -7,6 +7,20 @@
     {
       "name": "currency-converter-service",
       "path": "CurrencyConverterService"
+    },
+    {
+      "name": "request-proxy-service",
+      "path": "RequestProxyService"
+    },
+    {
+      "name": "nginx-gateway",
+      "path": "NginxGateway",
+      "type": "build-only"
+    },
+    {
+      "name": "keycloak-service",
+      "path": "KeycloakService",
+      "type": "build-only"
     }
   ]
 }

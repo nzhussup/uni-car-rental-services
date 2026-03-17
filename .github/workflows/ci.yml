@@ -34,7 +34,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Skip quality for build-only service
+        if: matrix.type == 'build-only'
+        shell: bash
+        run: echo "Skipping quality for ${{ matrix.name }} (serviceType=build-only)."
+
       - name: Run quality template
+        if: matrix.type != 'build-only'
         uses: ./.github/templates/quality
         with:
           serviceName: ${{ matrix.name }}
@@ -54,7 +60,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Skip tests for build-only service
+        if: matrix.type == 'build-only'
+        shell: bash
+        run: echo "Skipping tests for ${{ matrix.name }} (serviceType=build-only)."
+
       - name: Run test template
+        if: matrix.type != 'build-only'
         uses: ./.github/templates/test
         with:
           serviceName: ${{ matrix.name }}
@@ -70,7 +82,6 @@ jobs:
       - quality
       - test
       - prepare
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main')
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}

@@ -1,0 +1,16 @@
+{
+    "services": [
+        {
+            "name": "CarRentalService",
+            "enabled": true
+        },
+        {
+            "name": "RequestProxyService",
+            "enabled": true
+        },
+        {
+            "name": "CurrencyConverterService",
+            "enabled": false
+        }
+    ]
+}

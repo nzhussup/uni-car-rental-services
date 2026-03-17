@@ -161,3 +161,30 @@ temp/
 # Optional: local tool caches
 # -----------------------------
 .cache/
+
+# -----------------------------
+# Terraform
+# Local .terraform working dir
+**/.terraform/*
+
+# Terraform state
+*.tfstate
+*.tfstate.*
+
+# Crash logs
+crash.log
+crash.*.log
+
+# Sensitive variable files
+*.tfvars
+*.tfvars.json
+
+# CLI config files
+.terraformrc
+terraform.rc
+
+# Plan files
+*.tfplan
+plan.out
+tfplan
+# ------------------------------

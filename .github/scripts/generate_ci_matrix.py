@@ -35,6 +35,28 @@ def detect_service_type(service_path: Path) -> tuple[str, str, str]:
     )
 
 
+def resolve_service_type(entry: dict[str, str], service_path: Path) -> tuple[str, str, str]:
+    explicit_type = entry.get("type", "").strip().lower()
+    if explicit_type:
+        if explicit_type == "build-only":
+            return "build-only", "", ""
+
+        if explicit_type in {"go", "dotnet"}:
+            detected_type, solution, project = detect_service_type(service_path)
+            if detected_type != explicit_type:
+                raise ValueError(
+                    f"Service at '{service_path}' was configured as '{explicit_type}' but detected as '{detected_type}'."
+                )
+            return detected_type, solution, project
+
+        raise ValueError(
+            f"Unsupported explicit service type '{explicit_type}' for '{entry.get('name', service_path.name)}'. "
+            "Supported values are: go, dotnet, build-only."
+        )
+
+    return detect_service_type(service_path)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
@@ -64,7 +86,7 @@ def main() -> None:
         if not full_path.exists() or not full_path.is_dir():
             raise ValueError(f"Configured service path does not exist or is not a directory: {path}")
 
-        service_type, solution, project = detect_service_type(full_path)
+        service_type, solution, project = resolve_service_type(entry, full_path)
         sonar_project_key = sanitize_key(f"{args.repo_name}_{name}")
 
         matrix.append(

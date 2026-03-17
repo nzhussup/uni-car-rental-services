@@ -1,0 +1,26 @@
+[
+    {
+        "id": "google-places",
+        "baseUrl": "https://maps.googleapis.com",
+        "allowedMethods": [
+            "GET"
+        ],
+        "defaultHeaders": {
+            "Accept": "application/json"
+        },
+        "defaultQuery": {
+            "key": "${GOOGLE_MAPS_API_KEY}"
+        }
+    },
+    {
+        "id": "pexels",
+        "baseUrl": "https://api.pexels.com",
+        "allowedMethods": [
+            "GET"
+        ],
+        "defaultHeaders": {
+            "Accept": "application/json",
+            "Authorization": "${PEXELS_API_KEY}"
+        }
+    }
+]
