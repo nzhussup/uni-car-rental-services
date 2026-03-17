@@ -5,12 +5,12 @@ namespace CarRentalService.Data.Repositories;
 
 public class BookingRepository(CarRentalDbContext context) : IBookingRepository
 {
-    public async Task<IEnumerable<Booking>> GetAllAsync()
+    public Task<IQueryable<Booking>> GetAllAsync()
     {
-        return await context.Bookings
+        return Task.FromResult(context.Bookings
             .Include(x => x.Car)
             .Include(x => x.User)
-            .ToListAsync();
+            .AsQueryable());
     }
 
     public async Task<Booking?> GetByIdAsync(int id)

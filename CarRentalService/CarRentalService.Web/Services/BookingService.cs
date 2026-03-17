@@ -8,9 +8,25 @@ namespace CarRentalService.Services;
 
 public class BookingService(IBookingRepository repository, ICarRepository carRepository, IMapper mapper, ICarService carService) : IBookingService
 {
-    public async Task<IEnumerable<BookingDto>> GetAllBookingsAsync()
+    public async Task<QueryResponse<BookingDto>> GetAllBookingsAsync(PaginationDto pagination)
     {
-        return mapper.Map<IEnumerable<BookingDto>>(await repository.GetAllAsync());
+        var bookings = await repository.GetAllAsync();
+        return new QueryResponse<BookingDto>()
+        {
+            TotalElements = bookings.Count(),
+            Elements = mapper.Map<IEnumerable<BookingDto>>(bookings.Skip(pagination.Skip).Take(pagination.Take))
+        };
+    }
+
+    public async Task<QueryResponse<BookingDto>> GetAllUserBookingsAsync(int userId, PaginationDto pagination)
+    {
+        var bookings = await repository.GetAllAsync();
+        bookings = bookings.Where(booking => booking.UserId == userId);
+        return new QueryResponse<BookingDto>()
+        {
+            TotalElements = bookings.Count(),
+            Elements = mapper.Map<IEnumerable<BookingDto>>(bookings.Skip(pagination.Skip).Take(pagination.Take))
+        };
     }
 
     public async Task<BookingDto> GetBookingByIdAsync(int id)
@@ -78,6 +94,30 @@ public class BookingService(IBookingRepository repository, ICarRepository carRep
             default:
                 throw new ArgumentOutOfRangeException(nameof(bookingStatus), bookingStatus, null);
         }
+        await repository.SaveChangesAsync();
+        return mapper.Map<BookingDto>(booking);
+    }
+
+    public async Task<BookingDto> CancelBookingAsync(int userId, int id)
+    {
+        var booking = await repository.GetByIdAsync(id);
+        if (booking == null)
+        {
+            throw new NotFoundException("Booking", id);
+        }
+
+        if (booking.UserId != userId)
+        {
+            throw new NotAllowedException("Booking doesnt belong to user.");
+        }
+
+        if (booking.Status != BookingStatus.Booked)
+        {
+            throw new NotAllowedException("Cant change status of booking.");
+        }
+
+        booking.Status = BookingStatus.Canceled;
+        await carService.SetCarStatusAsync(booking.Car.Id, CarStatus.Available);
         await repository.SaveChangesAsync();
         return mapper.Map<BookingDto>(booking);
     }

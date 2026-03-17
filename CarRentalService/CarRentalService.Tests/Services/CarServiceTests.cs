@@ -6,6 +6,7 @@ using CarRentalService.Mappings;
 using CarRentalService.Models.DTOs;
 using CarRentalService.Services;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace CarRentalService.Tests.Services;
@@ -20,7 +21,7 @@ public class CarServiceTests
     {
         _mockCarRepository = new Mock<ICarRepository>();
 
-        var config = new MapperConfiguration(cfg => cfg.AddProfile<MappingProfile>());
+        var config = new MapperConfiguration(cfg => cfg.AddProfile<MappingProfile>(), new NullLoggerFactory());
         _mapper = config.CreateMapper();
 
         _carService = new CarService(_mockCarRepository.Object, _mapper);
@@ -74,7 +75,7 @@ public class CarServiceTests
     #region GetAllCarsAsync Tests
 
     [Fact]
-    public async Task GetAllCarsAsync_ShouldReturnAllCars_WhenCarsExist()
+    public async Task GetAllCarsAsync_ShouldReturnAllCars_WhenNoFilterApplied()
     {
         var cars = new List<Car>
         {
@@ -87,14 +88,14 @@ public class CarServiceTests
                 Id = 2, Make = "Honda", Model = "Civic", Year = 2023, PriceInUsd = 23000, Status = CarStatus.Rented
             }
         };
-        _mockCarRepository.Setup(repo => repo.GetAllAsync()).ReturnsAsync(cars);
+        _mockCarRepository.Setup(repo => repo.GetAllAsync()).ReturnsAsync(cars.AsQueryable());
 
-        var result = await _carService.GetAllCarsAsync();
+        var result = await _carService.GetAllCarsAsync(null, new PaginationDto { Skip = 0, Take = 50 });
 
-        var enumerable = result as CarDto[] ?? result.ToArray();
-        enumerable.Should().NotBeNull();
-        enumerable.Should().HaveCount(2);
-        var carDtos = enumerable.ToList();
+        result.Should().NotBeNull();
+        result.TotalElements.Should().Be(2);
+        var carDtos = result.Elements.ToArray();
+        carDtos.Should().HaveCount(2);
         carDtos[0].Make.Should().Be("Toyota");
         carDtos[1].Make.Should().Be("Honda");
         _mockCarRepository.Verify(repo => repo.GetAllAsync(), Times.Once);
@@ -103,14 +104,136 @@ public class CarServiceTests
     [Fact]
     public async Task GetAllCarsAsync_ShouldReturnEmptyList_WhenNoCarsExist()
     {
-        _mockCarRepository.Setup(repo => repo.GetAllAsync()).ReturnsAsync(new List<Car>());
+        _mockCarRepository.Setup(repo => repo.GetAllAsync()).ReturnsAsync(new List<Car>().AsQueryable());
 
-        var result = await _carService.GetAllCarsAsync();
+        var result = await _carService.GetAllCarsAsync(null, new PaginationDto { Skip = 0, Take = 50 });
 
-        var carDtos = result as CarDto[] ?? result.ToArray();
-        carDtos.Should().NotBeNull();
+        result.Should().NotBeNull();
+        result.TotalElements.Should().Be(0);
+        var carDtos = result.Elements.ToArray();
         carDtos.Should().BeEmpty();
         _mockCarRepository.Verify(repo => repo.GetAllAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAllCarsAsync_ShouldFilterByManufacturer_WhenManufacturerProvided()
+    {
+        var cars = new List<Car>
+        {
+            new()
+            {
+                Id = 1, Make = "Toyota", Model = "Camry", Year = 2022, PriceInUsd = 25000, Status = CarStatus.Available
+            },
+            new()
+            {
+                Id = 2, Make = "Honda", Model = "Civic", Year = 2023, PriceInUsd = 23000, Status = CarStatus.Rented
+            }
+        };
+        _mockCarRepository.Setup(repo => repo.GetAllAsync()).ReturnsAsync(cars.AsQueryable());
+
+        var filter = new CarFilterDto { CarManufacturer = "Toyota" };
+
+        var result = await _carService.GetAllCarsAsync(filter, new PaginationDto { Skip = 0, Take = 50 });
+
+        result.Should().NotBeNull();
+        result.TotalElements.Should().Be(1);
+        var carDtos = result.Elements.ToArray();
+        carDtos.Should().HaveCount(1);
+        carDtos[0].Make.Should().Be("Toyota");
+    }
+
+    [Fact]
+    public async Task GetAllCarsAsync_ShouldFilterByModelBranch_WhenModelProvided()
+    {
+        var cars = new List<Car>
+        {
+            new()
+            {
+                Id = 1, Make = "Toyota", Model = "Camry", Year = 2022, PriceInUsd = 25000, Status = CarStatus.Available
+            },
+            new()
+            {
+                Id = 2, Make = "Honda", Model = "Civic", Year = 2023, PriceInUsd = 23000, Status = CarStatus.Rented
+            }
+        };
+        _mockCarRepository.Setup(repo => repo.GetAllAsync()).ReturnsAsync(cars.AsQueryable());
+
+        var filter = new CarFilterDto { CarModel = "Civic", CarManufacturer = "Honda" };
+
+        var result = await _carService.GetAllCarsAsync(filter, new PaginationDto { Skip = 0, Take = 50 });
+
+        result.Should().NotBeNull();
+        result.TotalElements.Should().Be(1);
+        var carDtos = result.Elements.ToArray();
+        carDtos.Should().HaveCount(1);
+        carDtos[0].Model.Should().Be("Civic");
+    }
+
+    [Fact]
+    public async Task GetAllCarsAsync_ShouldFilterByAvailability_WhenDatesProvided()
+    {
+        var overlappingBooking = new Booking
+        {
+            PickupDate = new DateTime(2024, 5, 10),
+            DropoffDate = new DateTime(2024, 5, 12)
+        };
+        var cars = new List<Car>
+        {
+            new()
+            {
+                Id = 1, Make = "Toyota", Model = "Camry", Year = 2022, PriceInUsd = 25000, Status = CarStatus.Available,
+                CarBookings = new HashSet<Booking> { overlappingBooking }
+            },
+            new()
+            {
+                Id = 2, Make = "Honda", Model = "Civic", Year = 2023, PriceInUsd = 23000, Status = CarStatus.Rented,
+                CarBookings = new HashSet<Booking>()
+            }
+        };
+        _mockCarRepository.Setup(repo => repo.GetAllAsync()).ReturnsAsync(cars.AsQueryable());
+
+        var filter = new CarFilterDto
+        {
+            PickupDate = new DateTime(2024, 5, 11),
+            DropoffDate = new DateTime(2024, 5, 13)
+        };
+
+        var result = await _carService.GetAllCarsAsync(filter, new PaginationDto { Skip = 0, Take = 50 });
+
+        result.Should().NotBeNull();
+        result.TotalElements.Should().Be(1);
+        var carDtos = result.Elements.ToArray();
+        carDtos.Should().HaveCount(1);
+        carDtos[0].Make.Should().Be("Honda");
+    }
+
+    [Fact]
+    public async Task GetAllCarsAsync_ShouldApplyPagination_AfterFiltering()
+    {
+        var cars = new List<Car>
+        {
+            new()
+            {
+                Id = 1, Make = "Toyota", Model = "Camry", Year = 2022, PriceInUsd = 25000, Status = CarStatus.Available
+            },
+            new()
+            {
+                Id = 2, Make = "Honda", Model = "Civic", Year = 2023, PriceInUsd = 23000, Status = CarStatus.Rented
+            },
+            new()
+            {
+                Id = 3, Make = "Ford", Model = "Focus", Year = 2021, PriceInUsd = 21000, Status = CarStatus.Available
+            }
+        };
+        _mockCarRepository.Setup(repo => repo.GetAllAsync()).ReturnsAsync(cars.AsQueryable());
+
+        var result = await _carService.GetAllCarsAsync(null, new PaginationDto { Skip = 1, Take = 1 });
+
+        result.Should().NotBeNull();
+        result.TotalElements.Should().Be(3);
+        var carDtos = result.Elements.ToArray();
+        carDtos.Should().HaveCount(1);
+        carDtos[0].Id.Should().Be(2);
     }
 
     #endregion

@@ -8,10 +8,40 @@ namespace CarRentalService.Services;
 
 public class CarService(ICarRepository carRepository, IMapper mapper) : ICarService
 {
-    public async Task<IEnumerable<CarDto>> GetAllCarsAsync()
+    public async Task<QueryResponse<CarDto>> GetAllCarsAsync(CarFilterDto? filter, PaginationDto pagination)
     {
         var cars = await carRepository.GetAllAsync();
-        return mapper.Map<IEnumerable<CarDto>>(cars);
+        if (filter != null)
+        {
+            cars = FilterCars(cars, filter);
+        }
+
+        return new QueryResponse<CarDto>()
+        {
+            TotalElements = cars.Count(),
+            Elements = mapper.Map<IEnumerable<CarDto>>(cars.Skip(pagination.Skip).Take(pagination.Take))
+        };
+    }
+
+    private IQueryable<Car> FilterCars(IQueryable<Car> cars, CarFilterDto? filter)
+    {
+        if (!string.IsNullOrEmpty(filter.CarManufacturer))
+        {
+            cars = cars.Where(x => x.Make.ToLower() == filter.CarManufacturer.ToLower());
+        }
+
+        if (!string.IsNullOrEmpty(filter.CarModel))
+        {
+            cars = cars.Where(x => x.Model.ToLower() == filter.CarModel.ToLower());
+        }
+
+        if (filter.PickupDate.HasValue && filter.DropoffDate.HasValue)
+        {
+            cars = cars.Where(c => !c.CarBookings.Any(b =>
+                filter.PickupDate.Value.Date < b.DropoffDate && filter.DropoffDate.Value.Date > b.PickupDate));
+        }
+
+        return cars;
     }
 
     public async Task<CarDto> GetCarByIdAsync(int id)

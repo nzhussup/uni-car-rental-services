@@ -5,10 +5,12 @@ namespace CarRentalService.Services;
 
 public interface IBookingService
 {
-    Task<IEnumerable<BookingDto>> GetAllBookingsAsync();
+    Task<QueryResponse<BookingDto>> GetAllBookingsAsync(PaginationDto pagination);
+    Task<QueryResponse<BookingDto>> GetAllUserBookingsAsync(int userId, PaginationDto pagination);
     Task<BookingDto> GetBookingByIdAsync(int id);
     Task<BookingDto> CreateBookingAsnyc(CreateBookingDto createBookingDto);
     // Do we need an UpdateBooking, since we only Touch the Status and maybe the Dropodd Date
     Task<bool> DeleteBookingAsync(int id);
     Task<BookingDto> SetBookingStatusAsync(int id, BookingStatus bookingStatus);
+    Task<BookingDto> CancelBookingAsync(int userId, int id);
 }

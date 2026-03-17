@@ -5,9 +5,9 @@ namespace CarRentalService.Data.Repositories;
 
 public class CarRepository(CarRentalDbContext context) : ICarRepository
 {
-    public async Task<IEnumerable<Car>> GetAllAsync()
+    public Task<IQueryable<Car>> GetAllAsync()
     {
-        return await context.Cars.ToListAsync();
+        return Task.FromResult(context.Cars.AsQueryable());
     }
 
     public async Task<Car?> GetByIdAsync(int id)

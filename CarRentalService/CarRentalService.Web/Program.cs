@@ -5,6 +5,7 @@ using CarRentalService.Middleware;
 using CarRentalService.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
+using AutoMapper;
 
 var builder = WebApplication.CreateBuilder(args);
 const string FrontendCorsPolicy = "FrontendCors";
@@ -15,9 +16,12 @@ builder.Services.AddDbContext<CarRentalDbContext>(options =>
         sqlOptions => sqlOptions.MigrationsAssembly("CarRentalService.Web")));
 
 builder.Services.AddScoped<ICarRepository, CarRepository>();
+builder.Services.AddScoped<IBookingRepository, BookingRepository>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ICarService, CarService>();
+builder.Services.AddScoped<IBookingService, BookingService>();
 
-builder.Services.AddAutoMapper(typeof(Program));
+builder.Services.AddAutoMapper(cfg => { }, typeof(Program));
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandlerMiddleware>();
 builder.Services.AddProblemDetails();

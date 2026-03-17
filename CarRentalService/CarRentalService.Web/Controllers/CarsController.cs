@@ -1,4 +1,5 @@
-﻿using CarRentalService.Models.DTOs;
+﻿using System.ComponentModel.DataAnnotations;
+using CarRentalService.Models.DTOs;
 using CarRentalService.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,15 +11,17 @@ public class CarsController(ICarService carService) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<CarDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<CarDto>>> GetAllCars()
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<IEnumerable<CarDto>>> GetAllCars([FromQuery] CarFilterDto filter, [FromQuery, Required] PaginationDto pagination)
     {
-        var cars = await carService.GetAllCarsAsync();
+        var cars = await carService.GetAllCarsAsync(filter, pagination);
         return Ok(cars);
     }
 
 
     [HttpGet("{id:int}")]
     [ProducesResponseType(typeof(CarDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<CarDto>> GetCarById(int id)
     {
@@ -30,10 +33,9 @@ public class CarsController(ICarService carService) : ControllerBase
     [HttpPost]
     [ProducesResponseType(typeof(CarDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<CarDto>> CreateCar([FromBody] CreateCarDto createCarDto)
     {
-        if (!ModelState.IsValid) return BadRequest(ModelState);
-
         var createdCar = await carService.CreateCarAsync(createCarDto);
         return CreatedAtAction(nameof(GetCarById), new { id = createdCar.Id }, createdCar);
     }
@@ -41,12 +43,11 @@ public class CarsController(ICarService carService) : ControllerBase
 
     [HttpPut("{id:int}")]
     [ProducesResponseType(typeof(CarDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<CarDto>> UpdateCar(int id, [FromBody] UpdateCarDto updateCarDto)
     {
-        if (!ModelState.IsValid) return BadRequest(ModelState);
-
         var updatedCar = await carService.UpdateCarAsync(id, updateCarDto);
         return Ok(updatedCar);
     }
@@ -54,6 +55,7 @@ public class CarsController(ICarService carService) : ControllerBase
 
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteCar(int id)
     {
@@ -64,12 +66,11 @@ public class CarsController(ICarService carService) : ControllerBase
 
     [HttpPatch("{id:int}/status")]
     [ProducesResponseType(typeof(CarDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<CarDto>> UpdateCarStatus(int id, [FromBody] UpdateCarStatusDto updateStatusDto)
     {
-        if (!ModelState.IsValid) return BadRequest(ModelState);
-
         var car = await carService.SetCarStatusAsync(id, updateStatusDto.Status);
         return Ok(car);
     }
