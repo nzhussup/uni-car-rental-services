@@ -4,10 +4,438 @@ info:
   description: API Documentation
   version: v1
 paths:
+  /api/Booking:
+    get:
+      tags:
+        - Booking
+      parameters:
+        - name: Skip
+          in: query
+          required: true
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Take
+          in: query
+          required: true
+          schema:
+            maximum: 50
+            minimum: 0
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BookingDto'
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BookingDto'
+            text/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BookingDto'
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    post:
+      tags:
+        - Booking
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookingDto'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookingDto'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/CreateBookingDto'
+        required: true
+      responses:
+        '201':
+          description: Created
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/BookingDto'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDto'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/BookingDto'
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /api/Booking/user:
+    get:
+      tags:
+        - Booking
+      parameters:
+        - name: Skip
+          in: query
+          required: true
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Take
+          in: query
+          required: true
+          schema:
+            maximum: 50
+            minimum: 0
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BookingDto'
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BookingDto'
+            text/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BookingDto'
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  '/api/Booking/{id}':
+    get:
+      tags:
+        - Booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/BookingDto'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDto'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/BookingDto'
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    delete:
+      tags:
+        - Booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '204':
+          description: No Content
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  '/api/Booking/{id}/status':
+    patch:
+      tags:
+        - Booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBookingStatusDto'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBookingStatusDto'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/UpdateBookingStatusDto'
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/BookingDto'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDto'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/BookingDto'
+        '404':
+          description: Not Found
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  '/api/Booking/{id}/cancel':
+    patch:
+      tags:
+        - Booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/BookingDto'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDto'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/BookingDto'
+        '404':
+          description: Not Found
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /api/cars:
     get:
       tags:
         - Cars
+      parameters:
+        - name: CarManufacturer
+          in: query
+          schema:
+            type: string
+        - name: CarModel
+          in: query
+          schema:
+            type: string
+        - name: Year
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Status
+          in: query
+          schema:
+            $ref: '#/components/schemas/CarStatus'
+        - name: PickupDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: DropoffDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: Skip
+          in: query
+          required: true
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Take
+          in: query
+          required: true
+          schema:
+            maximum: 50
+            minimum: 0
+            type: integer
+            format: int32
       responses:
         '200':
           description: OK
@@ -27,6 +455,18 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/CarDto'
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
     post:
       tags:
         - Cars
@@ -66,6 +506,18 @@ paths:
             text/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   '/api/cars/{id}':
     get:
       tags:
@@ -90,6 +542,18 @@ paths:
             text/json:
               schema:
                 $ref: '#/components/schemas/CarDto'
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           description: Not Found
           content:
@@ -136,6 +600,18 @@ paths:
             text/json:
               schema:
                 $ref: '#/components/schemas/CarDto'
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           description: Not Found
           content:
@@ -173,6 +649,18 @@ paths:
       responses:
         '204':
           description: No Content
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           description: Not Found
           content:
@@ -220,6 +708,18 @@ paths:
             text/json:
               schema:
                 $ref: '#/components/schemas/CarDto'
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           description: Not Found
           content:
@@ -246,6 +746,41 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
 components:
   schemas:
+    BookingDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        carId:
+          type: integer
+          format: int32
+        userId:
+          type: integer
+          format: int32
+        bookingDate:
+          type: string
+          format: date-time
+        pickupDate:
+          type: string
+          format: date-time
+        dropoffDate:
+          type: string
+          format: date-time
+        totalCostInUsd:
+          type: number
+          format: double
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+      additionalProperties: false
+    BookingStatus:
+      enum:
+        - Booked
+        - Canceled
+        - PickedUp
+        - ReturnLate
+        - Completed
+      type: string
     CarDto:
       required:
         - make
@@ -276,6 +811,25 @@ components:
         - Rented
         - Maintenance
       type: string
+    CreateBookingDto:
+      required:
+        - dropoffDate
+        - pickupDate
+      type: object
+      properties:
+        userId:
+          type: integer
+          format: int32
+        carId:
+          type: integer
+          format: int32
+        pickupDate:
+          type: string
+          format: date-time
+        dropoffDate:
+          type: string
+          format: date-time
+      additionalProperties: false
     CreateCarDto:
       required:
         - make
@@ -323,6 +877,14 @@ components:
           type: string
           nullable: true
       additionalProperties: { }
+    UpdateBookingStatusDto:
+      required:
+        - status
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+      additionalProperties: false
     UpdateCarDto:
       required:
         - make
@@ -359,4 +921,5 @@ components:
           $ref: '#/components/schemas/CarStatus'
       additionalProperties: false
 tags:
+  - name: Booking
   - name: Cars

@@ -3,11 +3,12 @@ name: CI
 on:
   push:
     branches:
-      - "**"
+      - main
   pull_request:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   prepare:
@@ -82,6 +83,7 @@ jobs:
       - quality
       - test
       - prepare
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main')
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}

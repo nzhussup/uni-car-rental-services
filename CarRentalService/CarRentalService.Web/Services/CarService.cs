@@ -35,6 +35,16 @@ public class CarService(ICarRepository carRepository, IMapper mapper) : ICarServ
             cars = cars.Where(x => x.Model.ToLower() == filter.CarModel.ToLower());
         }
 
+        if (filter.Year.HasValue)
+        {
+            cars = cars.Where(x => x.Year == filter.Year.Value);
+        }
+
+        if (filter.Status.HasValue)
+        {
+            cars = cars.Where(x => x.Status == filter.Status.Value);
+        }
+
         if (filter.PickupDate.HasValue && filter.DropoffDate.HasValue)
         {
             cars = cars.Where(c => !c.CarBookings.Any(b =>

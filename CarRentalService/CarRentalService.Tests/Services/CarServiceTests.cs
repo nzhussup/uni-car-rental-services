@@ -170,6 +170,64 @@ public class CarServiceTests
     }
 
     [Fact]
+    public async Task GetAllCarsAsync_ShouldFilterByStatus_WhenStatusProvided()
+    {
+        var cars = new List<Car>
+        {
+            new()
+            {
+                Id = 1, Make = "Toyota", Model = "Camry", Year = 2022, PriceInUsd = 25000, Status = CarStatus.Available
+            },
+            new()
+            {
+                Id = 2, Make = "Honda", Model = "Civic", Year = 2023, PriceInUsd = 23000, Status = CarStatus.Rented
+            },
+            new()
+            {
+                Id = 3, Make = "Ford", Model = "Focus", Year = 2021, PriceInUsd = 21000, Status = CarStatus.Available
+            }
+        };
+        _mockCarRepository.Setup(repo => repo.GetAllAsync()).ReturnsAsync(cars.AsQueryable());
+
+        var filter = new CarFilterDto { Status = CarStatus.Available };
+
+        var result = await _carService.GetAllCarsAsync(filter, new PaginationDto { Skip = 0, Take = 50 });
+
+        result.Should().NotBeNull();
+        result.TotalElements.Should().Be(2);
+        var carDtos = result.Elements.ToArray();
+        carDtos.Should().HaveCount(2);
+        carDtos.Should().OnlyContain(car => car.Status == CarStatus.Available);
+    }
+
+    [Fact]
+    public async Task GetAllCarsAsync_ShouldFilterByYear_WhenYearProvided()
+    {
+        var cars = new List<Car>
+        {
+            new()
+            {
+                Id = 1, Make = "Toyota", Model = "Camry", Year = 2022, PriceInUsd = 25000, Status = CarStatus.Available
+            },
+            new()
+            {
+                Id = 2, Make = "Honda", Model = "Civic", Year = 2023, PriceInUsd = 23000, Status = CarStatus.Available
+            }
+        };
+        _mockCarRepository.Setup(repo => repo.GetAllAsync()).ReturnsAsync(cars.AsQueryable());
+
+        var filter = new CarFilterDto { Year = 2023 };
+
+        var result = await _carService.GetAllCarsAsync(filter, new PaginationDto { Skip = 0, Take = 50 });
+
+        result.Should().NotBeNull();
+        result.TotalElements.Should().Be(1);
+        var carDtos = result.Elements.ToArray();
+        carDtos.Should().HaveCount(1);
+        carDtos[0].Year.Should().Be(2023);
+    }
+
+    [Fact]
     public async Task GetAllCarsAsync_ShouldFilterByAvailability_WhenDatesProvided()
     {
         var overlappingBooking = new Booking

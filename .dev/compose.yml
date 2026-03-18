@@ -41,7 +41,7 @@
 
   car-rental-service:
     build:
-      context: ../../CarRentalService
+      context: ../CarRentalService
       dockerfile: Dockerfile
     container_name: car-rental-service
     restart: unless-stopped
@@ -69,7 +69,7 @@
 
   currency-converter-service:
     build:
-      context: ../../CurrencyConverterService
+      context: ../CurrencyConverterService
       dockerfile: Dockerfile
     container_name: currency-converter-service
     restart: unless-stopped
@@ -78,7 +78,7 @@
 
   request-proxy-service:
     build:
-      context: ../../RequestProxyService
+      context: ../RequestProxyService
       dockerfile: Dockerfile
     container_name: request-proxy-service
     restart: unless-stopped
@@ -90,7 +90,7 @@
 
   keycloak:
     build:
-      context: ../../KeycloakService
+      context: ../KeycloakService
       dockerfile: Dockerfile
     image: car-rental-keycloak:dev
     container_name: keycloak
