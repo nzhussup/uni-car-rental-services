@@ -1,0 +1,24 @@
+project_name = "car-rental"
+environment  = "prod"
+location     = "germanywestcentral"
+
+ghcr_username = "your-github-user"
+ghcr_password = "ghp_..."
+
+sql_admin_login    = "sqladminuser"
+sql_admin_password = "ReplaceThisWithAStrongPassword123!"
+
+google_maps_api_key      = "..."
+pexels_api_key           = "..."
+keycloak_admin_username  = "root"
+keycloak_admin_password  = "ReplaceThisToo123!"
+frontend_public_url      = "https://your-frontend-domain"
+
+image_tags = {
+  frontend                   = "sha-frontend-123"
+  nginx_gateway              = "sha-nginx-123"
+  car_rental_service         = "sha-car-rental-123"
+  request_proxy_service      = "sha-request-proxy-123"
+  currency_converter_service = "sha-currency-123"
+  keycloak                   = "sha-keycloak-123"
+}
