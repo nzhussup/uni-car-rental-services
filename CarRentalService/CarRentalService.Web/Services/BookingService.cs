@@ -6,26 +6,42 @@ using CarRentalService.Models.DTOs;
 
 namespace CarRentalService.Services;
 
-public class BookingService(IBookingRepository repository, ICarRepository carRepository, IMapper mapper, ICarService carService) : IBookingService
+public class BookingService(IBookingRepository repository, ICarRepository carRepository, IMapper mapper, ICarService carService, IUserService userService) : IBookingService
 {
     public async Task<QueryResponse<BookingDto>> GetAllBookingsAsync(PaginationDto pagination)
     {
         var bookings = await repository.GetAllAsync();
+        var bookingsDto = mapper.Map<IEnumerable<BookingDto>>(bookings.Skip(pagination.Skip).Take(pagination.Take));
+
+        foreach (var bookingDto in bookingsDto)
+        {
+            bookingDto.User = await userService.GetUserByIdAsync(bookingDto.UserId);
+        }
+
         return new QueryResponse<BookingDto>()
         {
             TotalElements = bookings.Count(),
-            Elements = mapper.Map<IEnumerable<BookingDto>>(bookings.Skip(pagination.Skip).Take(pagination.Take))
+            Elements = bookingsDto
         };
     }
 
-    public async Task<QueryResponse<BookingDto>> GetAllUserBookingsAsync(int userId, PaginationDto pagination)
+    public async Task<QueryResponse<BookingDto>> GetAllUserBookingsAsync(Guid userId, PaginationDto pagination)
     {
         var bookings = await repository.GetAllAsync();
         bookings = bookings.Where(booking => booking.UserId == userId);
+        var bookingsT = bookings.Where(booking => booking.UserId == userId).ToList();
+        var userDto = await userService.GetUserByIdAsync(userId);
+        var bookingsDto = mapper.Map<IEnumerable<BookingDto>>(bookings.Skip(pagination.Skip).Take(pagination.Take));
+
+        foreach (var bookingDto in bookingsDto)
+        {
+            bookingDto.User = userDto;
+        }
+
         return new QueryResponse<BookingDto>()
         {
             TotalElements = bookings.Count(),
-            Elements = mapper.Map<IEnumerable<BookingDto>>(bookings.Skip(pagination.Skip).Take(pagination.Take))
+            Elements = bookingsDto
         };
     }
 
@@ -35,7 +51,31 @@ public class BookingService(IBookingRepository repository, ICarRepository carRep
         return booking == null ? throw new NotFoundException("Booking", id) : mapper.Map<BookingDto>(booking);
     }
 
-    public async Task<BookingDto> CreateBookingAsnyc(CreateBookingDto createBookingDto)
+    public async Task<BookingDto> GetBookingByIdAsync(Guid userId, int id)
+    {
+        var booking = await repository.GetByIdAsync(id);
+        if (booking == null)
+        {
+            throw new NotFoundException("Booking", id);
+        }
+
+        if (booking.UserId != userId)
+        {
+            throw new NotAllowedException("Booking doesnt belong to user.");
+        }
+
+        if (booking == null)
+        {
+            throw new NotFoundException("Booking", id);
+        }
+
+        var bookingDto = mapper.Map<BookingDto>(booking);
+        var userDto = await userService.GetUserByIdAsync(userId);
+        bookingDto.User = userDto;
+        return bookingDto;
+    }
+
+    public async Task<BookingDto> CreateBookingAsnyc(Guid userid, CreateBookingDto createBookingDto)
     {
         var car = await carRepository.GetByIdAsync(createBookingDto.CarId);
         if (car == null)
@@ -48,6 +88,7 @@ public class BookingService(IBookingRepository repository, ICarRepository carRep
             throw new NotAllowedException("Cannot book a non available car.");
         }
         var booking = mapper.Map<Booking>(createBookingDto);
+        booking.UserId = userid;
         var createdBooking = await repository.AddAsync(booking);
         return mapper.Map<BookingDto>(createdBooking);
     }
@@ -98,7 +139,7 @@ public class BookingService(IBookingRepository repository, ICarRepository carRep
         return mapper.Map<BookingDto>(booking);
     }
 
-    public async Task<BookingDto> CancelBookingAsync(int userId, int id)
+    public async Task<BookingDto> CancelBookingAsync(Guid userId, int id)
     {
         var booking = await repository.GetByIdAsync(id);
         if (booking == null)

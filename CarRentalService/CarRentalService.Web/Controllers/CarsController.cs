@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using CarRentalService.Models.DTOs;
 using CarRentalService.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CarRentalService.Controllers;
@@ -30,6 +31,7 @@ public class CarsController(ICarService carService) : ControllerBase
     }
 
 
+    [Authorize(Policy = "Admin")]
     [HttpPost]
     [ProducesResponseType(typeof(CarDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -41,6 +43,7 @@ public class CarsController(ICarService carService) : ControllerBase
     }
 
 
+    [Authorize(Policy = "Admin")]
     [HttpPut("{id:int}")]
     [ProducesResponseType(typeof(CarDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -53,6 +56,7 @@ public class CarsController(ICarService carService) : ControllerBase
     }
 
 
+    [Authorize(Policy = "Admin")]
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -64,6 +68,7 @@ public class CarsController(ICarService carService) : ControllerBase
     }
 
 
+    [Authorize(Policy = "Admin")]
     [HttpPatch("{id:int}/status")]
     [ProducesResponseType(typeof(CarDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

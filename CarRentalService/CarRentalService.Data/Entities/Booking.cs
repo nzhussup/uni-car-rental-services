@@ -11,9 +11,7 @@ public class Booking
 
     public Car Car { get; set; }
 
-    public long UserId { get; set; }
-
-    public User User { get; set; }
+    public Guid UserId { get; set; }
 
     public DateTime BookingDate { get; set; } = DateTime.Now;
 

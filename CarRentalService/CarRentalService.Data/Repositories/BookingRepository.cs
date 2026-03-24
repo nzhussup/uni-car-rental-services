@@ -9,7 +9,6 @@ public class BookingRepository(CarRentalDbContext context) : IBookingRepository
     {
         return Task.FromResult(context.Bookings
             .Include(x => x.Car)
-            .Include(x => x.User)
             .AsQueryable());
     }
 
@@ -17,7 +16,6 @@ public class BookingRepository(CarRentalDbContext context) : IBookingRepository
     {
         return await context.Bookings
             .Include(x => x.Car)
-            .Include(x => x.User)
             .FirstOrDefaultAsync(x => x.Id == id);
     }
 
@@ -44,7 +42,6 @@ public class BookingRepository(CarRentalDbContext context) : IBookingRepository
     public async Task<bool> DeleteAsync(int id)
     {
         var booking = await context.Bookings
-            .Include(x => x.User)
             .FirstOrDefaultAsync(x => x.Id == id);
         if (booking is null) return false;
 

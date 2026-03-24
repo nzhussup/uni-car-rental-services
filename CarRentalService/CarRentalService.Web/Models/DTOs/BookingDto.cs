@@ -6,7 +6,8 @@ public class BookingDto
 {
     public int Id { get; set; }
     public int CarId { get; set; }
-    public int UserId { get; set; }
+    public Guid UserId { get; set; }
+    public UserDto User { get; set; }
     public DateTime BookingDate { get; set; }
     public DateTime PickupDate { get; set; }
     public DateTime DropoffDate { get; set; }

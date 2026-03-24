@@ -15,6 +15,7 @@ public class GlobalExceptionHandlerMiddleware(ILogger<GlobalExceptionHandlerMidd
         {
             NotFoundException => (StatusCodes.Status404NotFound, "Resource Not Found"),
             NotAllowedException => (StatusCodes.Status403Forbidden, "Resource Not Allowed"),
+            UserIdNotFoundException => (StatusCodes.Status401Unauthorized, "User Not Found"),
             _ => (StatusCodes.Status500InternalServerError, "An unexpected error occurred")
         };
 
@@ -25,6 +26,10 @@ public class GlobalExceptionHandlerMiddleware(ILogger<GlobalExceptionHandlerMidd
         else if (exception is NotAllowedException notAllowedException)
         {
             logger.LogWarning("Resource not allowed: {Message}", notAllowedException.Message);
+        }
+        else if (exception is UserIdNotFoundException userIdNotFoundException)
+        {
+            logger.LogWarning("User not found: {Message}", userIdNotFoundException.Message);
         }
         else
         {

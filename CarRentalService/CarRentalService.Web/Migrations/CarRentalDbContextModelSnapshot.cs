@@ -48,14 +48,12 @@ namespace CarRentalService.Migrations
                     b.Property<decimal>("TotalCostInUsd")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<long>("UserId")
-                        .HasColumnType("bigint");
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
                     b.HasIndex("CarId");
-
-                    b.HasIndex("UserId");
 
                     b.ToTable("Bookings");
                 });
@@ -92,37 +90,6 @@ namespace CarRentalService.Migrations
                     b.ToTable("Cars");
                 });
 
-            modelBuilder.Entity("CarRentalService.Data.Entities.User", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("FirstName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("LastName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<DateTime>("RegistrationDate")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Users");
-                });
-
             modelBuilder.Entity("CarRentalService.Data.Entities.Booking", b =>
                 {
                     b.HasOne("CarRentalService.Data.Entities.Car", "Car")
@@ -131,25 +98,12 @@ namespace CarRentalService.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CarRentalService.Data.Entities.User", "User")
-                        .WithMany("Bookings")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("Car");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("CarRentalService.Data.Entities.Car", b =>
                 {
                     b.Navigation("CarBookings");
-                });
-
-            modelBuilder.Entity("CarRentalService.Data.Entities.User", b =>
-                {
-                    b.Navigation("Bookings");
                 });
 #pragma warning restore 612, 618
         }

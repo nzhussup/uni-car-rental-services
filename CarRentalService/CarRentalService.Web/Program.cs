@@ -6,6 +6,11 @@ using CarRentalService.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using AutoMapper;
+using Duende.AccessTokenManagement;
+using Keycloak.AuthServices.Authentication;
+using Keycloak.AuthServices.Authorization;
+using Keycloak.AuthServices.Common;
+using Keycloak.AuthServices.Sdk;
 
 var builder = WebApplication.CreateBuilder(args);
 const string FrontendCorsPolicy = "FrontendCors";
@@ -15,11 +20,51 @@ builder.Services.AddDbContext<CarRentalDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection"),
         sqlOptions => sqlOptions.MigrationsAssembly("CarRentalService.Web")));
 
+builder.Services.AddKeycloakWebApiAuthentication(builder.Configuration);
+builder.Services.AddAuthorization(options =>
+    {
+        options.AddPolicy("All", builder =>
+        {
+            builder
+                .RequireRealmRoles("default-roles-car-rental-dev"); // Realm role is fetched from token
+        });
+        options.AddPolicy("User", builder =>
+        {
+            builder
+                .RequireRealmRoles("app-user"); // Realm role is fetched from token
+        });
+        options.AddPolicy("Admin", builder =>
+        {
+            builder
+                .RequireRealmRoles("app-admin"); // Realm role is fetched from token
+        });
+    })
+    .AddKeycloakAuthorization(builder.Configuration);
+var options =
+    builder.Configuration.GetSection("KeycloakAdmin").Get<KeycloakAdminClientOptions>();
+
+builder.Services.AddDistributedMemoryCache();
+builder.Services
+    .AddClientCredentialsTokenManagement()
+    .AddClient(
+        "keycloak-admin-token",
+        client =>
+        {
+            client.ClientId = ClientId.Parse(options.Resource);
+            client.ClientSecret = ClientSecret.Parse(options.Credentials.Secret);
+            client.TokenEndpoint = new Uri(options.KeycloakTokenEndpoint);
+        }
+    );
+
+var tokenClientName = ClientCredentialsClientName.Parse("keycloak-admin-token");
+builder.Services.AddKeycloakAdminHttpClient(options)
+    .AddClientCredentialsTokenHandler(tokenClientName);
+
 builder.Services.AddScoped<ICarRepository, CarRepository>();
 builder.Services.AddScoped<IBookingRepository, BookingRepository>();
-builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ICarService, CarService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
+builder.Services.AddScoped<IUserService, UserService>();
 
 builder.Services.AddAutoMapper(cfg => { }, typeof(Program));
 
@@ -78,5 +123,8 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
 }
+
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
 app.Run();

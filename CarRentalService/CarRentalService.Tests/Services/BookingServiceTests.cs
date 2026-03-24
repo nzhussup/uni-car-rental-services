@@ -17,6 +17,7 @@ public class BookingServiceTests
     private readonly Mock<IBookingRepository> _mockBookingRepository;
     private readonly Mock<ICarRepository> _mockCarRepository;
     private readonly Mock<ICarService> _mockCarService;
+    private readonly Mock<IUserService> _mockUserService;
     private readonly IMapper _mapper;
 
     public BookingServiceTests()
@@ -24,8 +25,18 @@ public class BookingServiceTests
         _mockBookingRepository = new Mock<IBookingRepository>();
         _mockCarRepository = new Mock<ICarRepository>();
         _mockCarService = new Mock<ICarService>();
+        _mockUserService = new Mock<IUserService>();
 
         _mockBookingRepository.Setup(repo => repo.SaveChangesAsync()).Returns(Task.CompletedTask);
+        _mockUserService
+            .Setup(service => service.GetUserByIdAsync(It.IsAny<Guid>()))
+            .ReturnsAsync((Guid id) => new UserDto
+            {
+                Id = id,
+                FirstName = "Test",
+                LastName = "User",
+                Email = "test.user@example.com"
+            });
 
         var config = new MapperConfiguration(cfg =>
         {
@@ -39,7 +50,8 @@ public class BookingServiceTests
             _mockBookingRepository.Object,
             _mockCarRepository.Object,
             _mapper,
-            _mockCarService.Object);
+            _mockCarService.Object,
+            _mockUserService.Object);
     }
 
     #region GetAllBookingsAsync Tests
@@ -87,16 +99,18 @@ public class BookingServiceTests
     [Fact]
     public async Task GetAllUserBookingsAsync_ShouldReturnUserBookings_WhenBookingsExist()
     {
+        var userId = Guid.NewGuid();
+        var otherUserId = Guid.NewGuid();
         var bookings = new List<Booking>
         {
-            CreateBooking(id: 1, carId: 10, status: BookingStatus.Booked, userId: 5),
-            CreateBooking(id: 2, carId: 11, status: BookingStatus.Canceled, userId: 6),
-            CreateBooking(id: 3, carId: 12, status: BookingStatus.PickedUp, userId: 5)
+            CreateBooking(id: 1, carId: 10, status: BookingStatus.Booked, userId: userId),
+            CreateBooking(id: 2, carId: 11, status: BookingStatus.Canceled, userId: otherUserId),
+            CreateBooking(id: 3, carId: 12, status: BookingStatus.PickedUp, userId: userId)
         };
 
         _mockBookingRepository.Setup(repo => repo.GetAllAsync()).ReturnsAsync(bookings.AsQueryable());
 
-        var result = await _bookingService.GetAllUserBookingsAsync(5, new PaginationDto { Skip = 0, Take = 50 });
+        var result = await _bookingService.GetAllUserBookingsAsync(userId, new PaginationDto { Skip = 0, Take = 50 });
 
         result.Should().NotBeNull();
         result.TotalElements.Should().Be(2);
@@ -109,15 +123,16 @@ public class BookingServiceTests
     [Fact]
     public async Task GetAllUserBookingsAsync_ShouldReturnEmptyList_WhenNoBookingsForUser()
     {
+        var userId = Guid.NewGuid();
         var bookings = new List<Booking>
         {
-            CreateBooking(id: 1, carId: 10, status: BookingStatus.Booked, userId: 2),
-            CreateBooking(id: 2, carId: 11, status: BookingStatus.Canceled, userId: 3)
+            CreateBooking(id: 1, carId: 10, status: BookingStatus.Booked, userId: Guid.NewGuid()),
+            CreateBooking(id: 2, carId: 11, status: BookingStatus.Canceled, userId: Guid.NewGuid())
         };
 
         _mockBookingRepository.Setup(repo => repo.GetAllAsync()).ReturnsAsync(bookings.AsQueryable());
 
-        var result = await _bookingService.GetAllUserBookingsAsync(5, new PaginationDto { Skip = 0, Take = 50 });
+        var result = await _bookingService.GetAllUserBookingsAsync(userId, new PaginationDto { Skip = 0, Take = 50 });
 
         result.Should().NotBeNull();
         result.TotalElements.Should().Be(0);
@@ -129,17 +144,19 @@ public class BookingServiceTests
     [Fact]
     public async Task GetAllUserBookingsAsync_ShouldApplyPagination_AfterFiltering()
     {
+        var userId = Guid.NewGuid();
+        var otherUserId = Guid.NewGuid();
         var bookings = new List<Booking>
         {
-            CreateBooking(id: 1, carId: 10, status: BookingStatus.Booked, userId: 7),
-            CreateBooking(id: 2, carId: 11, status: BookingStatus.Canceled, userId: 7),
-            CreateBooking(id: 3, carId: 12, status: BookingStatus.PickedUp, userId: 7),
-            CreateBooking(id: 4, carId: 13, status: BookingStatus.Booked, userId: 8)
+            CreateBooking(id: 1, carId: 10, status: BookingStatus.Booked, userId: userId),
+            CreateBooking(id: 2, carId: 11, status: BookingStatus.Canceled, userId: userId),
+            CreateBooking(id: 3, carId: 12, status: BookingStatus.PickedUp, userId: userId),
+            CreateBooking(id: 4, carId: 13, status: BookingStatus.Booked, userId: otherUserId)
         };
 
         _mockBookingRepository.Setup(repo => repo.GetAllAsync()).ReturnsAsync(bookings.AsQueryable());
 
-        var result = await _bookingService.GetAllUserBookingsAsync(7, new PaginationDto { Skip = 1, Take = 1 });
+        var result = await _bookingService.GetAllUserBookingsAsync(userId, new PaginationDto { Skip = 1, Take = 1 });
 
         result.Should().NotBeNull();
         result.TotalElements.Should().Be(3);
@@ -179,6 +196,58 @@ public class BookingServiceTests
         _mockBookingRepository.Verify(repo => repo.GetByIdAsync(999), Times.Once);
     }
 
+    [Fact]
+    public async Task GetBookingByIdAsync_ShouldReturnBookingForUser_WhenBookingExists()
+    {
+        var userId = Guid.NewGuid();
+        var booking = CreateBooking(id: 1, carId: 10, status: BookingStatus.Booked, userId: userId);
+        _mockBookingRepository.Setup(repo => repo.GetByIdAsync(1)).ReturnsAsync(booking);
+
+        var result = await _bookingService.GetBookingByIdAsync(userId, 1);
+
+        result.Should().NotBeNull();
+        result.Id.Should().Be(1);
+        result.CarId.Should().Be(10);
+        result.Status.Should().Be(BookingStatus.Booked);
+        _mockBookingRepository.Verify(repo => repo.GetByIdAsync(1), Times.Once);
+        _mockUserService.Verify(service => service.GetUserByIdAsync(userId), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetBookingByIdAsync_ShouldThrowNotAllowedException_WhenBookingDoesNotBelongToUser()
+    {
+        var userId = Guid.NewGuid();
+        var booking = CreateBooking(id: 1, carId: 10, status: BookingStatus.Booked, userId: Guid.NewGuid());
+        _mockBookingRepository.Setup(repo => repo.GetByIdAsync(1)).ReturnsAsync(booking);
+
+        var act = async () => await _bookingService.GetBookingByIdAsync(userId, 1);
+
+        await act.Should().ThrowAsync<NotAllowedException>();
+    }
+
+    [Fact]
+    public async Task GetBookingByIdAsync_ShouldThrowNotFoundException_WhenBookingIsNull_ForUser()
+    {
+        var userId = Guid.NewGuid();
+        _mockBookingRepository.Setup(repo => repo.GetByIdAsync(1)).ReturnsAsync((Booking?)null);
+
+        var act = async () => await _bookingService.GetBookingByIdAsync(userId, 1);
+
+        await act.Should().ThrowAsync<NotFoundException>();
+        _mockUserService.Verify(service => service.GetUserByIdAsync(It.IsAny<Guid>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetBookingByIdAsync_ShouldThrowNotFoundException_WhenBookingDoesNotExist_ForUser()
+    {
+        var userId = Guid.NewGuid();
+        _mockBookingRepository.Setup(repo => repo.GetByIdAsync(999)).ReturnsAsync((Booking?)null);
+
+        var act = async () => await _bookingService.GetBookingByIdAsync(userId, 999);
+
+        await act.Should().ThrowAsync<NotFoundException>();
+    }
+
     #endregion
 
     #region CreateBookingAsync Tests
@@ -189,14 +258,14 @@ public class BookingServiceTests
         var createBookingDto = new CreateBookingDto
         {
             CarId = 123,
-            UserId = 1,
             PickupDate = DateTime.UtcNow,
             DropoffDate = DateTime.UtcNow.AddDays(2)
         };
+        var userId = Guid.NewGuid();
 
         _mockCarRepository.Setup(repo => repo.GetByIdAsync(123)).ReturnsAsync((Car?)null);
 
-        var act = async () => await _bookingService.CreateBookingAsnyc(createBookingDto);
+        var act = async () => await _bookingService.CreateBookingAsnyc(userId, createBookingDto);
 
         await act.Should().ThrowAsync<NotFoundException>();
         _mockCarRepository.Verify(repo => repo.GetByIdAsync(123), Times.Once);
@@ -209,15 +278,15 @@ public class BookingServiceTests
         var createBookingDto = new CreateBookingDto
         {
             CarId = 10,
-            UserId = 1,
             PickupDate = DateTime.UtcNow,
             DropoffDate = DateTime.UtcNow.AddDays(2)
         };
+        var userId = Guid.NewGuid();
 
         var car = CreateCar(id: 10, status: CarStatus.Rented);
         _mockCarRepository.Setup(repo => repo.GetByIdAsync(10)).ReturnsAsync(car);
 
-        var act = async () => await _bookingService.CreateBookingAsnyc(createBookingDto);
+        var act = async () => await _bookingService.CreateBookingAsnyc(userId, createBookingDto);
 
         await act.Should().ThrowAsync<NotAllowedException>();
         _mockBookingRepository.Verify(repo => repo.AddAsync(It.IsAny<Booking>()), Times.Never);
@@ -229,10 +298,10 @@ public class BookingServiceTests
         var createBookingDto = new CreateBookingDto
         {
             CarId = 10,
-            UserId = 1,
             PickupDate = DateTime.UtcNow,
             DropoffDate = DateTime.UtcNow.AddDays(2)
         };
+        var userId = Guid.NewGuid();
 
         var car = CreateCar(id: 10, status: CarStatus.Available);
         _mockCarRepository.Setup(repo => repo.GetByIdAsync(10)).ReturnsAsync(car);
@@ -240,7 +309,7 @@ public class BookingServiceTests
         var createdBooking = CreateBooking(id: 99, carId: 10, status: BookingStatus.Booked);
         _mockBookingRepository.Setup(repo => repo.AddAsync(It.IsAny<Booking>())).ReturnsAsync(createdBooking);
 
-        var result = await _bookingService.CreateBookingAsnyc(createBookingDto);
+        var result = await _bookingService.CreateBookingAsnyc(userId, createBookingDto);
 
         result.Should().NotBeNull();
         result.Id.Should().Be(99);
@@ -283,9 +352,10 @@ public class BookingServiceTests
     [Fact]
     public async Task CancelBooking_ShouldThrowNotFoundException_WhenBookingDoesNotExist()
     {
+        var userId = Guid.NewGuid();
         _mockBookingRepository.Setup(repo => repo.GetByIdAsync(1)).ReturnsAsync((Booking?)null);
 
-        var act = async () => await _bookingService.CancelBookingAsync(1, 1);
+        var act = async () => await _bookingService.CancelBookingAsync(userId, 1);
 
         await act.Should().ThrowAsync<NotFoundException>();
         _mockBookingRepository.Verify(repo => repo.GetByIdAsync(1), Times.Once);
@@ -296,10 +366,11 @@ public class BookingServiceTests
     [Fact]
     public async Task CancelBooking_ShouldThrowNotAllowedException_WhenBookingDoesNotBelongToUser()
     {
-        var booking = CreateBooking(id: 1, carId: 10, status: BookingStatus.Booked, userId: 2);
+        var userId = Guid.NewGuid();
+        var booking = CreateBooking(id: 1, carId: 10, status: BookingStatus.Booked, userId: Guid.NewGuid());
         _mockBookingRepository.Setup(repo => repo.GetByIdAsync(1)).ReturnsAsync(booking);
 
-        var act = async () => await _bookingService.CancelBookingAsync(1, 1);
+        var act = async () => await _bookingService.CancelBookingAsync(userId, 1);
 
         await act.Should().ThrowAsync<NotAllowedException>();
         _mockBookingRepository.Verify(repo => repo.SaveChangesAsync(), Times.Never);
@@ -309,10 +380,11 @@ public class BookingServiceTests
     [Fact]
     public async Task CancelBooking_ShouldThrowNotAllowedException_WhenBookingIsNotBooked()
     {
-        var booking = CreateBooking(id: 1, carId: 10, status: BookingStatus.PickedUp, userId: 1);
+        var userId = Guid.NewGuid();
+        var booking = CreateBooking(id: 1, carId: 10, status: BookingStatus.PickedUp, userId: userId);
         _mockBookingRepository.Setup(repo => repo.GetByIdAsync(1)).ReturnsAsync(booking);
 
-        var act = async () => await _bookingService.CancelBookingAsync(1, 1);
+        var act = async () => await _bookingService.CancelBookingAsync(userId, 1);
 
         await act.Should().ThrowAsync<NotAllowedException>();
         _mockBookingRepository.Verify(repo => repo.SaveChangesAsync(), Times.Never);
@@ -322,7 +394,8 @@ public class BookingServiceTests
     [Fact]
     public async Task CancelBooking_ShouldCancelBookingAndUpdateCarStatus_WhenValid()
     {
-        var booking = CreateBooking(id: 1, carId: 10, status: BookingStatus.Booked, userId: 1);
+        var userId = Guid.NewGuid();
+        var booking = CreateBooking(id: 1, carId: 10, status: BookingStatus.Booked, userId: userId);
         _mockBookingRepository.Setup(repo => repo.GetByIdAsync(1)).ReturnsAsync(booking);
         _mockCarService
             .Setup(service => service.SetCarStatusAsync(10, CarStatus.Available))
@@ -336,7 +409,7 @@ public class BookingServiceTests
                 Status = CarStatus.Available
             });
 
-        var result = await _bookingService.CancelBookingAsync(1, 1);
+        var result = await _bookingService.CancelBookingAsync(userId, 1);
 
         result.Should().NotBeNull();
         result.Status.Should().Be(BookingStatus.Canceled);
@@ -472,7 +545,7 @@ public class BookingServiceTests
 
     #endregion
 
-    private static Booking CreateBooking(int id, int carId, BookingStatus status, int userId = 1)
+    private static Booking CreateBooking(int id, int carId, BookingStatus status, Guid userId = default)
     {
         var car = CreateCar(carId, CarStatus.Available);
         return new Booking
