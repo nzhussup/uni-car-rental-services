@@ -1,7 +1,9 @@
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
+using AutoMapper;
 using CarRentalService.Exceptions;
 using CarRentalService.Models.DTOs;
+using CarRentalService.Models.Responses;
 using CarRentalService.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,37 +12,41 @@ namespace CarRentalService.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class BookingController(IBookingService bookingService) : Controller
+public class BookingController(IBookingService bookingService, IExtCurrencyConvertService currencyConvertService, IMapper mapper) : Controller
 {
     [Authorize(Policy = "Admin")]
     [HttpGet]
-    [ProducesResponseType(typeof(IEnumerable<BookingDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(QueryResponse<BookingResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<ActionResult<IEnumerable<BookingDto>>> GetAllBookings([FromQuery, Required] PaginationDto pagination)
+    public async Task<ActionResult<IEnumerable<BookingDto>>> GetAllBookings([FromQuery, Required] PaginationDto pagination, [FromQuery] string targetCurrency = "USD")
     {
         var dtos = await bookingService.GetAllBookingsAsync(pagination);
-        return Ok(dtos);
+        var mappedBookings = await ConvertPriceForBooking(targetCurrency, dtos);
+        return Ok(mappedBookings);
     }
 
     [Authorize(Policy = "User")]
     [HttpGet("user")]
-    [ProducesResponseType(typeof(IEnumerable<BookingDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(QueryResponse<BookingResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<ActionResult<IEnumerable<BookingDto>>> GetAllUserBookings([FromQuery, Required] PaginationDto pagination)
+    public async Task<ActionResult<IEnumerable<BookingDto>>> GetAllUserBookings([FromQuery, Required] PaginationDto pagination, [FromQuery] string targetCurrency = "USD")
     {
         var dtos = await bookingService.GetAllUserBookingsAsync(this.GetUserId(), pagination);
-        return Ok(dtos);
+        var mappedBookings = await ConvertPriceForBooking(targetCurrency, dtos);
+        return Ok(mappedBookings);
     }
 
     [Authorize(Policy = "All")]
     [HttpGet("{id:int}")]
-    [ProducesResponseType(typeof(BookingDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(BookingResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<BookingDto>> GetBookingById([FromRoute, Required] int id)
+    public async Task<ActionResult<BookingDto>> GetBookingById([FromRoute, Required] int id, [FromQuery] string targetCurrency = "USD")
     {
         var dto = await bookingService.GetBookingByIdAsync(id);
-        return Ok(dto);
+        var mappedBooking = mapper.Map<BookingDto, BookingResponse>(dto);
+        mappedBooking.TotalCost = await currencyConvertService.ConvertMoney(mappedBooking.TotalCost.Amount, mappedBooking.TotalCost.Currency, targetCurrency);
+        return Ok(mappedBooking);
     }
 
     [Authorize(Policy = "Admin")]
@@ -88,6 +94,18 @@ public class BookingController(IBookingService bookingService) : Controller
     {
         var dto = await bookingService.CancelBookingAsync(this.GetUserId(), id);
         return Ok(dto);
+    }
+
+
+    private async Task<QueryResponse<BookingResponse>> ConvertPriceForBooking(string targetCurrency, QueryResponse<BookingDto> dtos)
+    {
+        var mappedBookings = mapper.Map<QueryResponse<BookingDto>, QueryResponse<BookingResponse>>(dtos);
+        foreach (var bookingsElement in mappedBookings.Elements)
+        {
+            bookingsElement.TotalCost = await currencyConvertService.ConvertMoney(bookingsElement.TotalCost.Amount, bookingsElement.TotalCost.Currency, targetCurrency);
+        }
+
+        return mappedBookings;
     }
 
     private Guid GetUserId()

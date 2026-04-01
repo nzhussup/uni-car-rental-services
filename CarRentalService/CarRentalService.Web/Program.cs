@@ -6,6 +6,8 @@ using CarRentalService.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using AutoMapper;
+using CarRentalService.CurrencyConverterService;
+using CarRentalService.Models.Settings;
 using Duende.AccessTokenManagement;
 using Keycloak.AuthServices.Authentication;
 using Keycloak.AuthServices.Authorization;
@@ -60,11 +62,26 @@ var tokenClientName = ClientCredentialsClientName.Parse("keycloak-admin-token");
 builder.Services.AddKeycloakAdminHttpClient(options)
     .AddClientCredentialsTokenHandler(tokenClientName);
 
+var currencyConverterSettings =
+    builder.Configuration.GetSection("CurrencyConverterSettings").Get<CurrencyConverterSettings>();
+
+builder.Services.AddScoped<CurrencyConverterPortTypeClient>(provider =>
+{
+    var client = new CurrencyConverterPortTypeClient(
+        CurrencyConverterPortTypeClient.EndpointConfiguration.CurrencyConverterPort,
+        currencyConverterSettings.BaseUrl
+    );
+    client.ClientCredentials.UserName.UserName = currencyConverterSettings.Username;
+    client.ClientCredentials.UserName.Password = currencyConverterSettings.Password;
+    return client;
+});
+
 builder.Services.AddScoped<ICarRepository, CarRepository>();
 builder.Services.AddScoped<IBookingRepository, BookingRepository>();
 builder.Services.AddScoped<ICarService, CarService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IExtCurrencyConvertService, ExtCurrencyConvertService>();
 
 builder.Services.AddAutoMapper(cfg => { }, typeof(Program));
 

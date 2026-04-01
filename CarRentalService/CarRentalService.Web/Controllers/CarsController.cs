@@ -1,5 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using AutoMapper;
 using CarRentalService.Models.DTOs;
+using CarRentalService.Models.Responses;
 using CarRentalService.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,26 +10,35 @@ namespace CarRentalService.Controllers;
 
 [ApiController]
 [Route("api/cars")]
-public class CarsController(ICarService carService) : ControllerBase
+public class CarsController(ICarService carService, IExtCurrencyConvertService currencyConvertService, IMapper mapper) : ControllerBase
 {
     [HttpGet]
-    [ProducesResponseType(typeof(IEnumerable<CarDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(QueryResponse<CarResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<ActionResult<IEnumerable<CarDto>>> GetAllCars([FromQuery] CarFilterDto filter, [FromQuery, Required] PaginationDto pagination)
+    public async Task<ActionResult<IEnumerable<CarDto>>> GetAllCars([FromQuery] CarFilterDto filter, [FromQuery, Required] PaginationDto pagination, [FromQuery] string targetCurrency = "USD")
     {
         var cars = await carService.GetAllCarsAsync(filter, pagination);
-        return Ok(cars);
+        var mappedCars = mapper.Map<QueryResponse<CarResponse>>(cars);
+
+        foreach (var car in mappedCars.Elements)
+        {
+            car.Price = await currencyConvertService.ConvertMoney(car.Price.Amount, car.Price.Currency, targetCurrency);
+        }
+
+        return Ok(mappedCars);
     }
 
 
     [HttpGet("{id:int}")]
-    [ProducesResponseType(typeof(CarDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(CarResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<CarDto>> GetCarById(int id)
+    public async Task<ActionResult<CarDto>> GetCarById(int id, [FromQuery] string targetCurrency = "USD")
     {
         var car = await carService.GetCarByIdAsync(id);
-        return Ok(car);
+        var mappedCar = mapper.Map<CarDto, CarResponse>(car);
+        mappedCar.Price = await currencyConvertService.ConvertMoney(mappedCar.Price.Amount, mappedCar.Price.Currency, targetCurrency);
+        return Ok(mappedCar);
     }
 
 
