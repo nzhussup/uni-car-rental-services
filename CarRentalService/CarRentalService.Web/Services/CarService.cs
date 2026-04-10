@@ -8,6 +8,8 @@ namespace CarRentalService.Services;
 
 public class CarService(ICarRepository carRepository, IMapper mapper) : ICarService
 {
+    private static readonly BookingStatus[] NonBlockingBookingStatuses = [BookingStatus.Canceled, BookingStatus.Completed];
+
     public async Task<QueryResponse<CarDto>> GetAllCarsAsync(CarFilterDto? filter, PaginationDto pagination)
     {
         var cars = await carRepository.GetAllAsync();
@@ -23,7 +25,7 @@ public class CarService(ICarRepository carRepository, IMapper mapper) : ICarServ
         };
     }
 
-    private IQueryable<Car> FilterCars(IQueryable<Car> cars, CarFilterDto? filter)
+    private IQueryable<Car> FilterCars(IQueryable<Car> cars, CarFilterDto filter)
     {
         if (!string.IsNullOrEmpty(filter.CarManufacturer))
         {
@@ -47,7 +49,10 @@ public class CarService(ICarRepository carRepository, IMapper mapper) : ICarServ
 
         if (filter.PickupDate.HasValue && filter.DropoffDate.HasValue)
         {
+            cars = cars.Where(c => c.Status != CarStatus.Maintenance);
+
             cars = cars.Where(c => !c.CarBookings.Any(b =>
+                !NonBlockingBookingStatuses.Contains(b.Status) &&
                 filter.PickupDate.Value.Date < b.DropoffDate && filter.DropoffDate.Value.Date > b.PickupDate));
         }
 

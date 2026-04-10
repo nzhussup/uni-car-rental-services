@@ -13,10 +13,11 @@ namespace CarRentalService.Tests.Services;
 
 public class BookingServiceTests
 {
+    private static readonly DateTime TestBaseDate = new(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc);
+
     private readonly BookingService _bookingService;
     private readonly Mock<IBookingRepository> _mockBookingRepository;
     private readonly Mock<ICarRepository> _mockCarRepository;
-    private readonly Mock<ICarService> _mockCarService;
     private readonly Mock<IUserService> _mockUserService;
     private readonly IMapper _mapper;
 
@@ -24,7 +25,6 @@ public class BookingServiceTests
     {
         _mockBookingRepository = new Mock<IBookingRepository>();
         _mockCarRepository = new Mock<ICarRepository>();
-        _mockCarService = new Mock<ICarService>();
         _mockUserService = new Mock<IUserService>();
 
         _mockBookingRepository.Setup(repo => repo.SaveChangesAsync()).Returns(Task.CompletedTask);
@@ -50,7 +50,6 @@ public class BookingServiceTests
             _mockBookingRepository.Object,
             _mockCarRepository.Object,
             _mapper,
-            _mockCarService.Object,
             _mockUserService.Object);
     }
 
@@ -73,8 +72,8 @@ public class BookingServiceTests
         result.TotalElements.Should().Be(2);
         var bookingDtos = result.Elements.ToArray();
         bookingDtos.Should().HaveCount(2);
-        bookingDtos[0].Id.Should().Be(1);
-        bookingDtos[1].Status.Should().Be(BookingStatus.Canceled);
+        bookingDtos[0].Id.Should().Be(2);
+        bookingDtos[1].Id.Should().Be(1);
         _mockBookingRepository.Verify(repo => repo.GetAllAsync(), Times.Once);
     }
 
@@ -116,7 +115,7 @@ public class BookingServiceTests
         result.TotalElements.Should().Be(2);
         var bookingDtos = result.Elements.ToArray();
         bookingDtos.Should().HaveCount(2);
-        bookingDtos.Select(b => b.Id).Should().Equal(1, 3);
+        bookingDtos.Select(b => b.Id).Should().Equal(3, 1);
         _mockBookingRepository.Verify(repo => repo.GetAllAsync(), Times.Once);
     }
 
@@ -253,13 +252,23 @@ public class BookingServiceTests
     #region CreateBookingAsync Tests
 
     [Fact]
+    public async Task CreateBookingAsnyc_ShouldThrowArgumentNullException_WhenDtoIsNull()
+    {
+        var userId = Guid.NewGuid();
+
+        var act = async () => await _bookingService.CreateBookingAsnyc(userId, null!);
+
+        await act.Should().ThrowAsync<ArgumentNullException>();
+    }
+
+    [Fact]
     public async Task CreateBookingAsnyc_ShouldThrowNotFoundException_WhenCarDoesNotExist()
     {
         var createBookingDto = new CreateBookingDto
         {
             CarId = 123,
-            PickupDate = DateTime.UtcNow,
-            DropoffDate = DateTime.UtcNow.AddDays(2)
+            PickupDate = TestBaseDate.AddDays(1),
+            DropoffDate = TestBaseDate.AddDays(3)
         };
         var userId = Guid.NewGuid();
 
@@ -273,17 +282,17 @@ public class BookingServiceTests
     }
 
     [Fact]
-    public async Task CreateBookingAsnyc_ShouldThrowNotAllowedException_WhenCarIsNotAvailable()
+    public async Task CreateBookingAsnyc_ShouldThrowNotAllowedException_WhenCarIsInMaintenance()
     {
         var createBookingDto = new CreateBookingDto
         {
             CarId = 10,
-            PickupDate = DateTime.UtcNow,
-            DropoffDate = DateTime.UtcNow.AddDays(2)
+            PickupDate = TestBaseDate.AddDays(1),
+            DropoffDate = TestBaseDate.AddDays(3)
         };
         var userId = Guid.NewGuid();
 
-        var car = CreateCar(id: 10, status: CarStatus.Rented);
+        var car = CreateCar(id: 10, status: CarStatus.Maintenance);
         _mockCarRepository.Setup(repo => repo.GetByIdAsync(10)).ReturnsAsync(car);
 
         var act = async () => await _bookingService.CreateBookingAsnyc(userId, createBookingDto);
@@ -293,18 +302,104 @@ public class BookingServiceTests
     }
 
     [Fact]
-    public async Task CreateBookingAsnyc_ShouldCreateAndReturnBooking_WhenCarIsAvailable()
+    public async Task CreateBookingAsnyc_ShouldAllowBooking_WhenCarStatusIsAvailable_AndDatesDoNotOverlap()
     {
         var createBookingDto = new CreateBookingDto
         {
             CarId = 10,
-            PickupDate = DateTime.UtcNow,
-            DropoffDate = DateTime.UtcNow.AddDays(2)
+            PickupDate = TestBaseDate.AddDays(7),
+            DropoffDate = TestBaseDate.AddDays(9)
         };
         var userId = Guid.NewGuid();
 
         var car = CreateCar(id: 10, status: CarStatus.Available);
         _mockCarRepository.Setup(repo => repo.GetByIdAsync(10)).ReturnsAsync(car);
+        _mockBookingRepository.Setup(repo => repo.GetAllAsync()).ReturnsAsync(new List<Booking>().AsQueryable());
+        _mockBookingRepository.Setup(repo => repo.AddAsync(It.IsAny<Booking>())).ReturnsAsync(
+            CreateBooking(id: 99, carId: 10, status: BookingStatus.Booked, userId: userId));
+
+        var result = await _bookingService.CreateBookingAsnyc(userId, createBookingDto);
+
+        result.Should().NotBeNull();
+        result.Status.Should().Be(BookingStatus.Booked);
+        _mockBookingRepository.Verify(repo => repo.AddAsync(It.IsAny<Booking>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateBookingAsnyc_ShouldIgnoreCanceledAndCompletedBookings_ForOverlapCheck()
+    {
+        var createBookingDto = new CreateBookingDto
+        {
+            CarId = 10,
+            PickupDate = new DateTime(2026, 4, 10),
+            DropoffDate = new DateTime(2026, 4, 12)
+        };
+        var userId = Guid.NewGuid();
+
+        var car = CreateCar(id: 10, status: CarStatus.Available);
+        _mockCarRepository.Setup(repo => repo.GetByIdAsync(10)).ReturnsAsync(car);
+
+        var bookings = new List<Booking>
+        {
+            CreateBooking(id: 1, carId: 10, status: BookingStatus.Canceled),
+            CreateBooking(id: 2, carId: 10, status: BookingStatus.Completed),
+        };
+        bookings[0].PickupDate = new DateTime(2026, 4, 9);
+        bookings[0].DropoffDate = new DateTime(2026, 4, 11);
+        bookings[1].PickupDate = new DateTime(2026, 4, 11);
+        bookings[1].DropoffDate = new DateTime(2026, 4, 13);
+        _mockBookingRepository.Setup(repo => repo.GetAllAsync()).ReturnsAsync(bookings.AsQueryable());
+        _mockBookingRepository.Setup(repo => repo.AddAsync(It.IsAny<Booking>())).ReturnsAsync(
+            CreateBooking(id: 99, carId: 10, status: BookingStatus.Booked, userId: userId));
+
+        var result = await _bookingService.CreateBookingAsnyc(userId, createBookingDto);
+
+        result.Should().NotBeNull();
+        _mockBookingRepository.Verify(repo => repo.AddAsync(It.IsAny<Booking>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateBookingAsnyc_ShouldThrowNotAllowedException_WhenOverlappingActiveBookingExists()
+    {
+        var createBookingDto = new CreateBookingDto
+        {
+            CarId = 10,
+            PickupDate = TestBaseDate.AddDays(10),
+            DropoffDate = TestBaseDate.AddDays(12)
+        };
+        var userId = Guid.NewGuid();
+
+        var car = CreateCar(id: 10, status: CarStatus.Available);
+        _mockCarRepository.Setup(repo => repo.GetByIdAsync(10)).ReturnsAsync(car);
+
+        var activeOverlappingBooking = CreateBooking(id: 1, carId: 10, status: BookingStatus.Booked);
+        activeOverlappingBooking.PickupDate = TestBaseDate.AddDays(11);
+        activeOverlappingBooking.DropoffDate = TestBaseDate.AddDays(13);
+
+        _mockBookingRepository.Setup(repo => repo.GetAllAsync())
+            .ReturnsAsync(new List<Booking> { activeOverlappingBooking }.AsQueryable());
+
+        var act = async () => await _bookingService.CreateBookingAsnyc(userId, createBookingDto);
+
+        await act.Should().ThrowAsync<NotAllowedException>()
+            .WithMessage("*already booked for the selected dates*");
+        _mockBookingRepository.Verify(repo => repo.AddAsync(It.IsAny<Booking>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateBookingAsnyc_ShouldCreateAndReturnBooking_WhenCarIsAvailable()
+    {
+        var createBookingDto = new CreateBookingDto
+        {
+            CarId = 10,
+            PickupDate = TestBaseDate.AddDays(1),
+            DropoffDate = TestBaseDate.AddDays(3)
+        };
+        var userId = Guid.NewGuid();
+
+        var car = CreateCar(id: 10, status: CarStatus.Available);
+        _mockCarRepository.Setup(repo => repo.GetByIdAsync(10)).ReturnsAsync(car);
+        _mockBookingRepository.Setup(repo => repo.GetAllAsync()).ReturnsAsync(new List<Booking>().AsQueryable());
 
         var createdBooking = CreateBooking(id: 99, carId: 10, status: BookingStatus.Booked);
         _mockBookingRepository.Setup(repo => repo.AddAsync(It.IsAny<Booking>())).ReturnsAsync(createdBooking);
@@ -360,7 +455,6 @@ public class BookingServiceTests
         await act.Should().ThrowAsync<NotFoundException>();
         _mockBookingRepository.Verify(repo => repo.GetByIdAsync(1), Times.Once);
         _mockBookingRepository.Verify(repo => repo.SaveChangesAsync(), Times.Never);
-        _mockCarService.Verify(service => service.SetCarStatusAsync(It.IsAny<int>(), It.IsAny<CarStatus>()), Times.Never);
     }
 
     [Fact]
@@ -374,7 +468,6 @@ public class BookingServiceTests
 
         await act.Should().ThrowAsync<NotAllowedException>();
         _mockBookingRepository.Verify(repo => repo.SaveChangesAsync(), Times.Never);
-        _mockCarService.Verify(service => service.SetCarStatusAsync(It.IsAny<int>(), It.IsAny<CarStatus>()), Times.Never);
     }
 
     [Fact]
@@ -388,32 +481,19 @@ public class BookingServiceTests
 
         await act.Should().ThrowAsync<NotAllowedException>();
         _mockBookingRepository.Verify(repo => repo.SaveChangesAsync(), Times.Never);
-        _mockCarService.Verify(service => service.SetCarStatusAsync(It.IsAny<int>(), It.IsAny<CarStatus>()), Times.Never);
     }
 
     [Fact]
-    public async Task CancelBooking_ShouldCancelBookingAndUpdateCarStatus_WhenValid()
+    public async Task CancelBooking_ShouldCancelBooking_WhenValid()
     {
         var userId = Guid.NewGuid();
         var booking = CreateBooking(id: 1, carId: 10, status: BookingStatus.Booked, userId: userId);
         _mockBookingRepository.Setup(repo => repo.GetByIdAsync(1)).ReturnsAsync(booking);
-        _mockCarService
-            .Setup(service => service.SetCarStatusAsync(10, CarStatus.Available))
-            .ReturnsAsync(new CarDto
-            {
-                Id = 10,
-                Make = "Toyota",
-                Model = "Camry",
-                Year = 2022,
-                PriceInUsd = 25000,
-                Status = CarStatus.Available
-            });
 
         var result = await _bookingService.CancelBookingAsync(userId, 1);
 
         result.Should().NotBeNull();
         result.Status.Should().Be(BookingStatus.Canceled);
-        _mockCarService.Verify(service => service.SetCarStatusAsync(10, CarStatus.Available), Times.Once);
         _mockBookingRepository.Verify(repo => repo.SaveChangesAsync(), Times.Once);
     }
 
@@ -446,55 +526,31 @@ public class BookingServiceTests
     }
 
     [Fact]
-    public async Task SetBookingStatusAsync_ShouldSetBookedAndUpdateCarStatus()
+    public async Task SetBookingStatusAsync_ShouldSetBooked()
     {
         var booking = CreateBooking(id: 1, carId: 10, status: BookingStatus.PickedUp);
         _mockBookingRepository.Setup(repo => repo.GetByIdAsync(1)).ReturnsAsync(booking);
-        _mockCarService
-            .Setup(service => service.SetCarStatusAsync(10, CarStatus.Rented))
-            .ReturnsAsync(new CarDto
-            {
-                Id = 10,
-                Make = "Toyota",
-                Model = "Camry",
-                Year = 2022,
-                PriceInUsd = 25000,
-                Status = CarStatus.Rented
-            });
 
         var result = await _bookingService.SetBookingStatusAsync(1, BookingStatus.Booked);
 
         result.Status.Should().Be(BookingStatus.Booked);
-        _mockCarService.Verify(service => service.SetCarStatusAsync(10, CarStatus.Rented), Times.Once);
         _mockBookingRepository.Verify(repo => repo.SaveChangesAsync(), Times.Once);
     }
 
     [Fact]
-    public async Task SetBookingStatusAsync_ShouldSetCanceledAndUpdateCarStatus()
+    public async Task SetBookingStatusAsync_ShouldSetCanceled()
     {
         var booking = CreateBooking(id: 1, carId: 10, status: BookingStatus.Booked);
         _mockBookingRepository.Setup(repo => repo.GetByIdAsync(1)).ReturnsAsync(booking);
-        _mockCarService
-            .Setup(service => service.SetCarStatusAsync(10, CarStatus.Available))
-            .ReturnsAsync(new CarDto
-            {
-                Id = 10,
-                Make = "Toyota",
-                Model = "Camry",
-                Year = 2022,
-                PriceInUsd = 25000,
-                Status = CarStatus.Available
-            });
 
         var result = await _bookingService.SetBookingStatusAsync(1, BookingStatus.Canceled);
 
         result.Status.Should().Be(BookingStatus.Canceled);
-        _mockCarService.Verify(service => service.SetCarStatusAsync(10, CarStatus.Available), Times.Once);
         _mockBookingRepository.Verify(repo => repo.SaveChangesAsync(), Times.Once);
     }
 
     [Fact]
-    public async Task SetBookingStatusAsync_ShouldSetPickedUp_WithoutChangingCarStatus()
+    public async Task SetBookingStatusAsync_ShouldSetPickedUp()
     {
         var booking = CreateBooking(id: 1, carId: 10, status: BookingStatus.Booked);
         _mockBookingRepository.Setup(repo => repo.GetByIdAsync(1)).ReturnsAsync(booking);
@@ -502,12 +558,11 @@ public class BookingServiceTests
         var result = await _bookingService.SetBookingStatusAsync(1, BookingStatus.PickedUp);
 
         result.Status.Should().Be(BookingStatus.PickedUp);
-        _mockCarService.Verify(service => service.SetCarStatusAsync(It.IsAny<int>(), It.IsAny<CarStatus>()), Times.Never);
         _mockBookingRepository.Verify(repo => repo.SaveChangesAsync(), Times.Once);
     }
 
     [Fact]
-    public async Task SetBookingStatusAsync_ShouldSetReturnLate_WithoutChangingCarStatus()
+    public async Task SetBookingStatusAsync_ShouldSetReturnLate()
     {
         var booking = CreateBooking(id: 1, carId: 10, status: BookingStatus.PickedUp);
         _mockBookingRepository.Setup(repo => repo.GetByIdAsync(1)).ReturnsAsync(booking);
@@ -515,31 +570,18 @@ public class BookingServiceTests
         var result = await _bookingService.SetBookingStatusAsync(1, BookingStatus.ReturnLate);
 
         result.Status.Should().Be(BookingStatus.ReturnLate);
-        _mockCarService.Verify(service => service.SetCarStatusAsync(It.IsAny<int>(), It.IsAny<CarStatus>()), Times.Never);
         _mockBookingRepository.Verify(repo => repo.SaveChangesAsync(), Times.Once);
     }
 
     [Fact]
-    public async Task SetBookingStatusAsync_ShouldSetCompletedAndUpdateCarStatus()
+    public async Task SetBookingStatusAsync_ShouldSetCompleted()
     {
         var booking = CreateBooking(id: 1, carId: 10, status: BookingStatus.ReturnLate);
         _mockBookingRepository.Setup(repo => repo.GetByIdAsync(1)).ReturnsAsync(booking);
-        _mockCarService
-            .Setup(service => service.SetCarStatusAsync(10, CarStatus.Available))
-            .ReturnsAsync(new CarDto
-            {
-                Id = 10,
-                Make = "Toyota",
-                Model = "Camry",
-                Year = 2022,
-                PriceInUsd = 25000,
-                Status = CarStatus.Available
-            });
 
         var result = await _bookingService.SetBookingStatusAsync(1, BookingStatus.Completed);
 
         result.Status.Should().Be(BookingStatus.Completed);
-        _mockCarService.Verify(service => service.SetCarStatusAsync(10, CarStatus.Available), Times.Once);
         _mockBookingRepository.Verify(repo => repo.SaveChangesAsync(), Times.Once);
     }
 
@@ -554,9 +596,9 @@ public class BookingServiceTests
             CarId = carId,
             Car = car,
             UserId = userId,
-            BookingDate = DateTime.UtcNow.AddDays(-1),
-            PickupDate = DateTime.UtcNow,
-            DropoffDate = DateTime.UtcNow.AddDays(2),
+            BookingDate = TestBaseDate.AddDays(id),
+            PickupDate = TestBaseDate.AddDays(id + 1),
+            DropoffDate = TestBaseDate.AddDays(id + 3),
             TotalCostInUsd = 150,
             Status = status
         };

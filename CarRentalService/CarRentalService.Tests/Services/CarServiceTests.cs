@@ -85,7 +85,7 @@ public class CarServiceTests
             },
             new()
             {
-                Id = 2, Make = "Honda", Model = "Civic", Year = 2023, PriceInUsd = 23000, Status = CarStatus.Rented
+                Id = 2, Make = "Honda", Model = "Civic", Year = 2023, PriceInUsd = 23000, Status = CarStatus.Maintenance
             }
         };
         _mockCarRepository.Setup(repo => repo.GetAllAsync()).ReturnsAsync(cars.AsQueryable());
@@ -126,7 +126,7 @@ public class CarServiceTests
             },
             new()
             {
-                Id = 2, Make = "Honda", Model = "Civic", Year = 2023, PriceInUsd = 23000, Status = CarStatus.Rented
+                Id = 2, Make = "Honda", Model = "Civic", Year = 2023, PriceInUsd = 23000, Status = CarStatus.Maintenance
             }
         };
         _mockCarRepository.Setup(repo => repo.GetAllAsync()).ReturnsAsync(cars.AsQueryable());
@@ -153,7 +153,7 @@ public class CarServiceTests
             },
             new()
             {
-                Id = 2, Make = "Honda", Model = "Civic", Year = 2023, PriceInUsd = 23000, Status = CarStatus.Rented
+                Id = 2, Make = "Honda", Model = "Civic", Year = 2023, PriceInUsd = 23000, Status = CarStatus.Maintenance
             }
         };
         _mockCarRepository.Setup(repo => repo.GetAllAsync()).ReturnsAsync(cars.AsQueryable());
@@ -180,7 +180,7 @@ public class CarServiceTests
             },
             new()
             {
-                Id = 2, Make = "Honda", Model = "Civic", Year = 2023, PriceInUsd = 23000, Status = CarStatus.Rented
+                Id = 2, Make = "Honda", Model = "Civic", Year = 2023, PriceInUsd = 23000, Status = CarStatus.Maintenance
             },
             new()
             {
@@ -244,7 +244,7 @@ public class CarServiceTests
             },
             new()
             {
-                Id = 2, Make = "Honda", Model = "Civic", Year = 2023, PriceInUsd = 23000, Status = CarStatus.Rented,
+                Id = 2, Make = "Honda", Model = "Civic", Year = 2023, PriceInUsd = 23000, Status = CarStatus.Available,
                 CarBookings = new HashSet<Booking>()
             }
         };
@@ -276,7 +276,7 @@ public class CarServiceTests
             },
             new()
             {
-                Id = 2, Make = "Honda", Model = "Civic", Year = 2023, PriceInUsd = 23000, Status = CarStatus.Rented
+                Id = 2, Make = "Honda", Model = "Civic", Year = 2023, PriceInUsd = 23000, Status = CarStatus.Maintenance
             },
             new()
             {
@@ -461,17 +461,17 @@ public class CarServiceTests
             Model = "Camry",
             Year = 2022,
             PriceInUsd = 25000,
-            Status = CarStatus.Rented
+            Status = CarStatus.Maintenance
         };
 
         _mockCarRepository.Setup(repo => repo.GetByIdAsync(1)).ReturnsAsync(existingCar);
         _mockCarRepository.Setup(repo => repo.SaveChangesAsync()).Returns(Task.CompletedTask);
 
-        var result = await _carService.SetCarStatusAsync(1, CarStatus.Rented);
+        var result = await _carService.SetCarStatusAsync(1, CarStatus.Maintenance);
 
         result.Should().NotBeNull();
-        result!.Status.Should().Be(CarStatus.Rented);
-        existingCar.Status.Should().Be(CarStatus.Rented);
+        result!.Status.Should().Be(CarStatus.Maintenance);
+        existingCar.Status.Should().Be(CarStatus.Maintenance);
         _mockCarRepository.Verify(repo => repo.GetByIdAsync(1), Times.Once);
         _mockCarRepository.Verify(repo => repo.SaveChangesAsync(), Times.Once);
     }
@@ -481,7 +481,7 @@ public class CarServiceTests
     {
         _mockCarRepository.Setup(repo => repo.GetByIdAsync(999)).ReturnsAsync((Car?)null);
 
-        var act = async () => await _carService.SetCarStatusAsync(999, CarStatus.Rented);
+        var act = async () => await _carService.SetCarStatusAsync(999, CarStatus.Maintenance);
 
         await act.Should().ThrowAsync<NotFoundException>();
         _mockCarRepository.Verify(repo => repo.GetByIdAsync(999), Times.Once);
@@ -490,7 +490,6 @@ public class CarServiceTests
 
     [Theory]
     [InlineData(CarStatus.Available)]
-    [InlineData(CarStatus.Rented)]
     [InlineData(CarStatus.Maintenance)]
     public async Task SetCarStatusAsync_ShouldHandleAllStatuses_WhenCarExists(CarStatus newStatus)
     {

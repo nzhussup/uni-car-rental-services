@@ -6,11 +6,15 @@ using CarRentalService.Models.DTOs;
 
 namespace CarRentalService.Services;
 
-public class BookingService(IBookingRepository repository, ICarRepository carRepository, IMapper mapper, ICarService carService, IUserService userService) : IBookingService
+public class BookingService(IBookingRepository repository, ICarRepository carRepository, IMapper mapper, IUserService userService) : IBookingService
 {
+    private static readonly BookingStatus[] NonBlockingBookingStatuses = [BookingStatus.Canceled, BookingStatus.Completed];
+
     public async Task<QueryResponse<BookingDto>> GetAllBookingsAsync(PaginationDto pagination)
     {
-        var bookings = await repository.GetAllAsync();
+        var bookings = (await repository.GetAllAsync())
+            .OrderByDescending(booking => booking.BookingDate)
+            .ThenByDescending(booking => booking.Id);
         var bookingsDto = mapper.Map<IEnumerable<BookingDto>>(bookings.Skip(pagination.Skip).Take(pagination.Take));
 
         foreach (var bookingDto in bookingsDto)
@@ -27,9 +31,10 @@ public class BookingService(IBookingRepository repository, ICarRepository carRep
 
     public async Task<QueryResponse<BookingDto>> GetAllUserBookingsAsync(Guid userId, PaginationDto pagination)
     {
-        var bookings = await repository.GetAllAsync();
-        bookings = bookings.Where(booking => booking.UserId == userId);
-        var bookingsT = bookings.Where(booking => booking.UserId == userId).ToList();
+        var bookings = (await repository.GetAllAsync())
+            .Where(booking => booking.UserId == userId)
+            .OrderByDescending(booking => booking.BookingDate)
+            .ThenByDescending(booking => booking.Id);
         var userDto = await userService.GetUserByIdAsync(userId);
         var bookingsDto = mapper.Map<IEnumerable<BookingDto>>(bookings.Skip(pagination.Skip).Take(pagination.Take));
 
@@ -64,11 +69,6 @@ public class BookingService(IBookingRepository repository, ICarRepository carRep
             throw new NotAllowedException("Booking doesnt belong to user.");
         }
 
-        if (booking == null)
-        {
-            throw new NotFoundException("Booking", id);
-        }
-
         var bookingDto = mapper.Map<BookingDto>(booking);
         var userDto = await userService.GetUserByIdAsync(userId);
         bookingDto.User = userDto;
@@ -77,18 +77,34 @@ public class BookingService(IBookingRepository repository, ICarRepository carRep
 
     public async Task<BookingDto> CreateBookingAsnyc(Guid userid, CreateBookingDto createBookingDto)
     {
+        ArgumentNullException.ThrowIfNull(createBookingDto);
+
         var car = await carRepository.GetByIdAsync(createBookingDto.CarId);
         if (car == null)
         {
             throw new NotFoundException("Car", createBookingDto.CarId);
         }
 
-        if (car.Status != CarStatus.Available)
+        if (car.Status == CarStatus.Maintenance)
         {
-            throw new NotAllowedException("Cannot book a non available car.");
+            throw new NotAllowedException("Cannot book a car that is under maintenance.");
         }
+
+        var overlapping = (await repository.GetAllAsync()).Any(b =>
+            b.CarId == createBookingDto.CarId
+            && !NonBlockingBookingStatuses.Contains(b.Status)
+            && createBookingDto.PickupDate < b.DropoffDate
+            && createBookingDto.DropoffDate > b.PickupDate);
+
+        if (overlapping)
+        {
+            throw new NotAllowedException("Car is already booked for the selected dates.");
+        }
+
         var booking = mapper.Map<Booking>(createBookingDto);
         booking.UserId = userid;
+        var days = Math.Max(1, (createBookingDto.DropoffDate - createBookingDto.PickupDate).Days);
+        booking.TotalCostInUsd = car.PriceInUsd * days;
         var createdBooking = await repository.AddAsync(booking);
         return mapper.Map<BookingDto>(createdBooking);
     }
@@ -116,11 +132,9 @@ public class BookingService(IBookingRepository repository, ICarRepository carRep
         {
             case BookingStatus.Booked:
                 booking.Status = BookingStatus.Booked;
-                await carService.SetCarStatusAsync(booking.Car.Id, CarStatus.Rented);
                 break;
             case BookingStatus.Canceled:
                 booking.Status = BookingStatus.Canceled;
-                await carService.SetCarStatusAsync(booking.Car.Id, CarStatus.Available);
                 break;
             case BookingStatus.PickedUp:
                 booking.Status = BookingStatus.PickedUp;
@@ -130,7 +144,6 @@ public class BookingService(IBookingRepository repository, ICarRepository carRep
                 break;
             case BookingStatus.Completed:
                 booking.Status = BookingStatus.Completed;
-                await carService.SetCarStatusAsync(booking.Car.Id, CarStatus.Available);
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(bookingStatus), bookingStatus, null);
@@ -158,7 +171,6 @@ public class BookingService(IBookingRepository repository, ICarRepository carRep
         }
 
         booking.Status = BookingStatus.Canceled;
-        await carService.SetCarStatusAsync(booking.Car.Id, CarStatus.Available);
         await repository.SaveChangesAsync();
         return mapper.Map<BookingDto>(booking);
     }

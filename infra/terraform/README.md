@@ -120,6 +120,8 @@ Terraform injects runtime configuration directly into Container Apps.
 Non-secret environment values currently include:
 
 - `NODE_ENV` for the frontend
+- `VITE_API_BASE_URL`, `VITE_KEYCLOAK_URL`, `VITE_KEYCLOAK_REALM`, `VITE_KEYCLOAK_CLIENT_ID` for frontend runtime config injection
+- `VITE_API_BASE_URL` and `VITE_KEYCLOAK_URL` are derived automatically from the `nginx-gateway` and `keycloak-service` Container App hostnames
 - `CORS_ALLOWED_ORIGIN` for `nginx-gateway`
 - `ASPNETCORE_ENVIRONMENT` and `CURRENCY_CONVERTER_BASE_URL` for `car-rental-service`
 - Keycloak runtime configuration such as `KC_DB`, `KC_DB_URL`, `KEYCLOAK_FRONTEND_URL`, and realm import settings
@@ -130,6 +132,12 @@ Secret environment values currently include:
 - `GOOGLE_MAPS_API_KEY` and `PEXELS_API_KEY` for `request-proxy-service`
 - `KC_DB_PASSWORD`, `KC_BOOTSTRAP_ADMIN_USERNAME`, and `KC_BOOTSTRAP_ADMIN_PASSWORD` for `keycloak-service`
 - GHCR registry credentials for image pulls
+
+## Frontend Runtime Configuration
+
+Frontend runtime settings are injected as Container App environment variables by Terraform, then rendered into `/app-config.js` by the frontend NGINX entrypoint on container start.
+
+This means frontend Docker builds do not require `VITE_*` build secrets or GitHub repository variables anymore.
 
 ## Images and Registry
 

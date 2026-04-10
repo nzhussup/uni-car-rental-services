@@ -20,10 +20,12 @@ public class CarsController(ICarService carService, IExtCurrencyConvertService c
         var cars = await carService.GetAllCarsAsync(filter, pagination);
         var mappedCars = mapper.Map<QueryResponse<CarResponse>>(cars);
 
-        foreach (var car in mappedCars.Elements)
-        {
-            car.Price = await currencyConvertService.ConvertMoney(car.Price.Amount, car.Price.Currency, targetCurrency);
-        }
+        var conversionTasks = mappedCars.Elements
+            .Select(async car =>
+            {
+                car.Price = await currencyConvertService.ConvertMoney(car.Price.Amount, car.Price.Currency, targetCurrency);
+            });
+        await Task.WhenAll(conversionTasks);
 
         return Ok(mappedCars);
     }

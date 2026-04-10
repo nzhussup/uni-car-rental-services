@@ -80,9 +80,34 @@ variable "keycloak_admin_password" {
   description = "Keycloak bootstrap admin password."
 }
 
-variable "frontend_public_url" {
+variable "frontend_keycloak_realm" {
   type        = string
-  description = "Public frontend URL used for Keycloak redirect and logout URIs."
+  description = "Runtime VITE_KEYCLOAK_REALM and Keycloak realm name used by the frontend."
+  default     = "car-rental-prod"
+}
+
+variable "frontend_keycloak_client_id" {
+  type        = string
+  description = "Runtime VITE_KEYCLOAK_CLIENT_ID used by the frontend."
+  default     = "car-rental-frontend"
+}
+
+variable "currency_converter_soap_username" {
+  type        = string
+  sensitive   = true
+  description = "Basic auth username for currency-converter SOAP endpoint."
+}
+
+variable "currency_converter_soap_password" {
+  type        = string
+  sensitive   = true
+  description = "Basic auth password for currency-converter SOAP endpoint."
+}
+
+variable "keycloak_import_override" {
+  type        = string
+  description = "Whether Keycloak import should overwrite an existing realm ('true' or 'false')."
+  default     = "false"
 }
 
 variable "image_tags" {

@@ -23,9 +23,21 @@ public class ExtCurrencyConvertService(
         try
         {
             var response = await currencyConverterClient.ConvertAmountAsync((double)amount, fromCurrency, toCurrency);
+            var converted = (decimal?)response?.Body?.ConvertedAmount ?? 0m;
+
+            if (converted > 0)
+            {
+                return new PriceDto()
+                {
+                    Amount = converted,
+                    Currency = toCurrency
+                };
+            }
+
+            logger.LogWarning("Currency conversion returned zero. Falling back to original amount. From={FromCurrency}, To={ToCurrency}", fromCurrency, toCurrency);
             return new PriceDto()
             {
-                Amount = (decimal)response.Body.ConvertedAmount,
+                Amount = amount,
                 Currency = fromCurrency
             };
         }

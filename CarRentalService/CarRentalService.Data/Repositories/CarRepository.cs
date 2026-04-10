@@ -7,12 +7,17 @@ public class CarRepository(CarRentalDbContext context) : ICarRepository
 {
     public Task<IQueryable<Car>> GetAllAsync()
     {
-        return Task.FromResult(context.Cars.AsQueryable());
+        // Include bookings so availability filters can consider existing reservations
+        return Task.FromResult(context.Cars
+            .Include(c => c.CarBookings)
+            .AsQueryable());
     }
 
     public async Task<Car?> GetByIdAsync(int id)
     {
-        return await context.Cars.FindAsync(id);
+        return await context.Cars
+            .Include(c => c.CarBookings)
+            .FirstOrDefaultAsync(c => c.Id == id);
     }
 
     public async Task<Car> AddAsync(Car car)

@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"currency-converter-service/internal/ecb"
@@ -16,9 +17,6 @@ const (
 
 	ecbFeedURL = "http://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
 	wsdlPath   = "wsdl/currency-converter.wsdl"
-
-	soapUsername = "admin"
-	soapPassword = "admin"
 )
 
 func main() {
@@ -27,6 +25,12 @@ func main() {
 	httpClient := &http.Client{Timeout: 10 * time.Second}
 	ecbClient := ecb.NewClient(ecbFeedURL, httpClient)
 	converter := service.NewConverter(ecbClient)
+	soapUsername := strings.TrimSpace(os.Getenv("SOAP_USERNAME"))
+	soapPassword := strings.TrimSpace(os.Getenv("SOAP_PASSWORD"))
+	if soapUsername == "" || soapPassword == "" {
+		logger.Error("SOAP_USERNAME and SOAP_PASSWORD environment variables are required")
+		os.Exit(1)
+	}
 	handler := soap.NewHandler(converter, wsdlPath, soapUsername, soapPassword, logger)
 
 	mux := http.NewServeMux()

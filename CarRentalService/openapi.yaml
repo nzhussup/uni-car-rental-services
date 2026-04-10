@@ -4,7 +4,7 @@ info:
   description: API Documentation
   version: v1
 paths:
-  /api/Booking:
+  /api/booking:
     get:
       tags:
         - Booking
@@ -25,25 +25,24 @@ paths:
             minimum: 0
             type: integer
             format: int32
+        - name: targetCurrency
+          in: query
+          schema:
+            type: string
+            default: USD
       responses:
         '200':
           description: OK
           content:
             text/plain:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/BookingDto'
+                $ref: '#/components/schemas/BookingResponseQueryResponse'
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/BookingDto'
+                $ref: '#/components/schemas/BookingResponseQueryResponse'
             text/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/BookingDto'
+                $ref: '#/components/schemas/BookingResponseQueryResponse'
         '403':
           description: Forbidden
           content:
@@ -120,7 +119,7 @@ paths:
             text/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
-  /api/Booking/user:
+  /api/booking/user:
     get:
       tags:
         - Booking
@@ -141,25 +140,24 @@ paths:
             minimum: 0
             type: integer
             format: int32
+        - name: targetCurrency
+          in: query
+          schema:
+            type: string
+            default: USD
       responses:
         '200':
           description: OK
           content:
             text/plain:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/BookingDto'
+                $ref: '#/components/schemas/BookingResponseQueryResponse'
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/BookingDto'
+                $ref: '#/components/schemas/BookingResponseQueryResponse'
             text/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/BookingDto'
+                $ref: '#/components/schemas/BookingResponseQueryResponse'
         '403':
           description: Forbidden
           content:
@@ -172,7 +170,7 @@ paths:
             text/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
-  '/api/Booking/{id}':
+  '/api/booking/{id}':
     get:
       tags:
         - Booking
@@ -183,19 +181,24 @@ paths:
           schema:
             type: integer
             format: int32
+        - name: targetCurrency
+          in: query
+          schema:
+            type: string
+            default: USD
       responses:
         '200':
           description: OK
           content:
             text/plain:
               schema:
-                $ref: '#/components/schemas/BookingDto'
+                $ref: '#/components/schemas/BookingResponse'
             application/json:
               schema:
-                $ref: '#/components/schemas/BookingDto'
+                $ref: '#/components/schemas/BookingResponse'
             text/json:
               schema:
-                $ref: '#/components/schemas/BookingDto'
+                $ref: '#/components/schemas/BookingResponse'
         '403':
           description: Forbidden
           content:
@@ -257,7 +260,7 @@ paths:
             text/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
-  '/api/Booking/{id}/status':
+  '/api/booking/{id}/status':
     patch:
       tags:
         - Booking
@@ -328,7 +331,7 @@ paths:
             text/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
-  '/api/Booking/{id}/cancel':
+  '/api/booking/{id}/cancel':
     patch:
       tags:
         - Booking
@@ -436,25 +439,24 @@ paths:
             minimum: 0
             type: integer
             format: int32
+        - name: targetCurrency
+          in: query
+          schema:
+            type: string
+            default: USD
       responses:
         '200':
           description: OK
           content:
             text/plain:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/CarDto'
+                $ref: '#/components/schemas/CarResponseQueryResponse'
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/CarDto'
+                $ref: '#/components/schemas/CarResponseQueryResponse'
             text/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/CarDto'
+                $ref: '#/components/schemas/CarResponseQueryResponse'
         '403':
           description: Forbidden
           content:
@@ -529,19 +531,24 @@ paths:
           schema:
             type: integer
             format: int32
+        - name: targetCurrency
+          in: query
+          schema:
+            type: string
+            default: USD
       responses:
         '200':
           description: OK
           content:
             text/plain:
               schema:
-                $ref: '#/components/schemas/CarDto'
+                $ref: '#/components/schemas/CarResponse'
             application/json:
               schema:
-                $ref: '#/components/schemas/CarDto'
+                $ref: '#/components/schemas/CarResponse'
             text/json:
               schema:
-                $ref: '#/components/schemas/CarDto'
+                $ref: '#/components/schemas/CarResponse'
         '403':
           description: Forbidden
           content:
@@ -756,8 +763,10 @@ components:
           type: integer
           format: int32
         userId:
-          type: integer
-          format: int32
+          type: string
+          format: uuid
+        user:
+          $ref: '#/components/schemas/UserDto'
         bookingDate:
           type: string
           format: date-time
@@ -772,6 +781,46 @@ components:
           format: double
         status:
           $ref: '#/components/schemas/BookingStatus'
+      additionalProperties: false
+    BookingResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        carId:
+          type: integer
+          format: int32
+        userId:
+          type: string
+          format: uuid
+        user:
+          $ref: '#/components/schemas/UserDto'
+        bookingDate:
+          type: string
+          format: date-time
+        pickupDate:
+          type: string
+          format: date-time
+        dropoffDate:
+          type: string
+          format: date-time
+        totalCost:
+          $ref: '#/components/schemas/PriceDto'
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+      additionalProperties: false
+    BookingResponseQueryResponse:
+      type: object
+      properties:
+        totalElements:
+          type: integer
+          format: int32
+        elements:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookingResponse'
+          nullable: true
       additionalProperties: false
     BookingStatus:
       enum:
@@ -805,10 +854,44 @@ components:
         status:
           $ref: '#/components/schemas/CarStatus'
       additionalProperties: false
+    CarResponse:
+      required:
+        - make
+        - model
+      type: object
+      properties:
+        price:
+          $ref: '#/components/schemas/PriceDto'
+        id:
+          type: integer
+          format: int32
+        make:
+          type: string
+          nullable: true
+        model:
+          type: string
+          nullable: true
+        year:
+          type: integer
+          format: int32
+        status:
+          $ref: '#/components/schemas/CarStatus'
+      additionalProperties: false
+    CarResponseQueryResponse:
+      type: object
+      properties:
+        totalElements:
+          type: integer
+          format: int32
+        elements:
+          type: array
+          items:
+            $ref: '#/components/schemas/CarResponse'
+          nullable: true
+      additionalProperties: false
     CarStatus:
       enum:
         - Available
-        - Rented
         - Maintenance
       type: string
     CreateBookingDto:
@@ -817,9 +900,6 @@ components:
         - pickupDate
       type: object
       properties:
-        userId:
-          type: integer
-          format: int32
         carId:
           type: integer
           format: int32
@@ -856,6 +936,19 @@ components:
           minimum: 0.01
           type: number
           format: double
+      additionalProperties: false
+    PriceDto:
+      required:
+        - amount
+        - currency
+      type: object
+      properties:
+        amount:
+          type: number
+          format: double
+        currency:
+          type: string
+          nullable: true
       additionalProperties: false
     ProblemDetails:
       type: object
@@ -919,6 +1012,26 @@ components:
       properties:
         status:
           $ref: '#/components/schemas/CarStatus'
+      additionalProperties: false
+    UserDto:
+      required:
+        - email
+        - firstName
+        - lastName
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
       additionalProperties: false
 tags:
   - name: Booking

@@ -10,10 +10,10 @@ type GetExchangeRateRequest struct {
 
 type GetExchangeRateResponse struct {
 	XMLName        xml.Name `xml:"cur:GetExchangeRateResponse"`
-	Rate           float64  `xml:"Rate"`
-	Source         string   `xml:"Source"`
-	BaseCurrency   string   `xml:"BaseCurrency"`
-	TargetCurrency string   `xml:"TargetCurrency"`
+	Rate           float64  `xml:"cur:Rate"`
+	Source         string   `xml:"cur:Source"`
+	BaseCurrency   string   `xml:"cur:BaseCurrency"`
+	TargetCurrency string   `xml:"cur:TargetCurrency"`
 }
 
 type ConvertAmountRequest struct {
@@ -25,11 +25,11 @@ type ConvertAmountRequest struct {
 
 type ConvertAmountResponse struct {
 	XMLName         xml.Name `xml:"cur:ConvertAmountResponse"`
-	ConvertedAmount float64  `xml:"ConvertedAmount"`
-	Rate            float64  `xml:"Rate"`
-	Source          string   `xml:"Source"`
-	BaseCurrency    string   `xml:"BaseCurrency"`
-	TargetCurrency  string   `xml:"TargetCurrency"`
+	ConvertedAmount float64  `xml:"cur:ConvertedAmount"`
+	Rate            float64  `xml:"cur:Rate"`
+	Source          string   `xml:"cur:Source"`
+	BaseCurrency    string   `xml:"cur:BaseCurrency"`
+	TargetCurrency  string   `xml:"cur:TargetCurrency"`
 }
 
 type GetSupportedCurrenciesRequest struct {

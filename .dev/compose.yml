@@ -48,6 +48,14 @@
     environment:
       ASPNETCORE_ENVIRONMENT: "Development"
       ConnectionStrings__DefaultConnection: "Server=mssql,1433;Database=CarRentalDB;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;"
+      CurrencyConverterSettings__BaseUrl: "http://currency-converter-service:8080/soap"
+      CurrencyConverterSettings__Username: "${CURRENCY_CONVERTER_SOAP_USERNAME:-admin}"
+      CurrencyConverterSettings__Password: "${CURRENCY_CONVERTER_SOAP_PASSWORD:-admin}"
+      Keycloak__auth-server-url: "http://keycloak:8080/"
+      KeycloakAdmin__authServerUrl: "http://keycloak:8080/"
+      KeycloakAdmin__realm: "car-rental-dev"
+      KeycloakBootstrapAdmin__Username: "root"
+      KeycloakBootstrapAdmin__Password: "root"
     depends_on:
       mssql:
         condition: service_healthy
@@ -73,6 +81,9 @@
       dockerfile: Dockerfile
     container_name: currency-converter-service
     restart: unless-stopped
+    environment:
+      SOAP_USERNAME: "${CURRENCY_CONVERTER_SOAP_USERNAME:-admin}"
+      SOAP_PASSWORD: "${CURRENCY_CONVERTER_SOAP_PASSWORD:-admin}"
     networks:
       - carrental-network
 

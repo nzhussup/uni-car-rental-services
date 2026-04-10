@@ -6,6 +6,7 @@ ssl_required="${KEYCLOAK_SSL_REQUIRED:-external}"
 import_mode="${KEYCLOAK_IMPORT_MODE:-prod}"
 realm_template_name="${KEYCLOAK_REALM_TEMPLATE:-}"
 realm_name="${KEYCLOAK_REALM_NAME:-}"
+import_override="${KEYCLOAK_IMPORT_OVERRIDE:-false}"
 
 if [[ -z "$realm_template_name" ]]; then
   if [[ "$import_mode" == "dev" ]]; then
@@ -50,13 +51,14 @@ render_realm_import() {
   sed \
     -e "s/car-rental-dev/${escaped_realm_name}/g" \
     -e "s|http://localhost:5173|${escaped_frontend_url}|g" \
+    -e "s|https://replace-with-your-frontend-domain|${escaped_frontend_url}|g" \
     -e "s/\"sslRequired\": \"none\"/\"sslRequired\": \"${escaped_ssl_required}\"/" \
     "$realm_template" > "$rendered_realm_file"
 }
 
 import_realm() {
   local args
-  args=(import "--file=${rendered_realm_file}" "--override=false")
+  args=(import "--file=${rendered_realm_file}" "--override=${import_override}")
 
   /opt/keycloak/bin/kc.sh "${args[@]}"
 }

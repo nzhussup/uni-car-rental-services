@@ -12,7 +12,11 @@ google_maps_api_key      = "..."
 pexels_api_key           = "..."
 keycloak_admin_username  = "root"
 keycloak_admin_password  = "ReplaceThisToo123!"
-frontend_public_url      = "https://your-frontend-domain"
+frontend_keycloak_realm    = "car-rental-prod"
+frontend_keycloak_client_id = "car-rental-frontend"
+currency_converter_soap_username = "admin"
+currency_converter_soap_password = "admin"
+keycloak_import_override = "false"
 
 image_tags = {
   frontend                   = "sha-frontend-123"

@@ -34,7 +34,7 @@ public class ExtCurrencyConvertServiceTests
 
         result.Should().NotBeNull();
         result.Amount.Should().Be((decimal)expectedConvertedAmount);
-        result.Currency.Should().Be("USD");
+        result.Currency.Should().Be("EUR");
 
         channelMock.Verify(channel => channel.ConvertAmountAsync(It.Is<ConvertAmountRequest>(request =>
             request.Body.Amount.Equals(100d) &&
@@ -82,6 +82,39 @@ public class ExtCurrencyConvertServiceTests
                 LogLevel.Error,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((state, _) => state.ToString()!.Contains("Currency could not be converted")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task ConvertMoney_ShouldReturnOriginalAmount_WhenServiceReturnsZero()
+    {
+        var channelMock = new Mock<CurrencyConverterPortType>();
+        var loggerMock = new Mock<ILogger<ExtCurrencyConvertService>>();
+
+        channelMock
+            .Setup(channel => channel.ConvertAmountAsync(It.IsAny<ConvertAmountRequest>()))
+            .ReturnsAsync(new ConvertAmountResponse
+            {
+                Body = new ConvertAmountResponseBody
+                {
+                    ConvertedAmount = 0
+                }
+            });
+
+        var service = CreateService(channelMock, loggerMock);
+
+        var result = await service.ConvertMoney(17m, "USD", "EUR");
+
+        result.Should().NotBeNull();
+        result.Amount.Should().Be(17m);
+        result.Currency.Should().Be("USD");
+
+        loggerMock.Verify(logger => logger.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((state, _) => state.ToString()!.Contains("Currency conversion returned zero")),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception, string>>()),
             Times.Once);
