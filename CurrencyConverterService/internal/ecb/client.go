@@ -3,13 +3,14 @@ package ecb
 import (
 	"context"
 	"encoding/xml"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	apperr "currency-converter-service/internal/err"
 )
 
 type Client struct {
@@ -59,14 +60,14 @@ func ParseRatesXML(data []byte, source string) (RatesData, error) {
 	}
 
 	if doc.Cube.Daily.Time == "" {
-		return RatesData{}, errors.New("ECB XML missing daily rate timestamp")
+		return RatesData{}, apperr.ErrECBMissingDailyTimestamp
 	}
 
 	rates := map[string]float64{"EUR": 1.0}
 	for _, r := range doc.Cube.Daily.Rates {
 		currency := strings.ToUpper(strings.TrimSpace(r.Currency))
 		if currency == "" {
-			return RatesData{}, errors.New("ECB XML contains empty currency code")
+			return RatesData{}, apperr.ErrECBEmptyCurrencyCode
 		}
 
 		rate, err := strconv.ParseFloat(strings.TrimSpace(r.Rate), 64)
@@ -81,7 +82,7 @@ func ParseRatesXML(data []byte, source string) (RatesData, error) {
 	}
 
 	if len(rates) == 1 {
-		return RatesData{}, errors.New("ECB XML contains no exchange rates")
+		return RatesData{}, apperr.ErrECBNoExchangeRates
 	}
 
 	return RatesData{

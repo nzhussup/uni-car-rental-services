@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package currency.converter;
+
+option go_package = "currency-converter-service/proto;currencyconverterpb";
+
+service CurrencyConverter {
+    rpc GetExchangeRate(GetExchangeRateRequest) returns (GetExchangeRateResponse);
+    rpc ConvertAmount(ConvertAmountRequest) returns (ConvertAmountResponse);
+    rpc GetSupportedCurrencies(GetSupportedCurrenciesRequest) returns (GetSupportedCurrenciesResponse);
+}
+
+message GetExchangeRateRequest {
+    string from_currency = 1;
+    string to_currency = 2;
+}
+
+message GetExchangeRateResponse {
+    double rate = 1;
+    string source = 2;
+    string base_currency = 3;
+    string target_currency = 4;
+}
+
+message ConvertAmountRequest {
+    double amount = 1;
+    string from_currency = 2;
+    string to_currency = 3;
+}
+
+message ConvertAmountResponse {
+    double converted_amount = 1;
+    double rate = 2;
+    string source = 3;
+    string base_currency = 4;
+    string target_currency = 5;
+}
+
+message GetSupportedCurrenciesRequest {
+}
+
+message GetSupportedCurrenciesResponse {
+    repeated string currencies = 1;
+}

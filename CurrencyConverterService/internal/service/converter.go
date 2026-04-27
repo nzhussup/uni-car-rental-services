@@ -3,38 +3,12 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sort"
 	"strings"
 
 	"currency-converter-service/internal/ecb"
+	apperr "currency-converter-service/internal/err"
 )
-
-var (
-	ErrMissingCurrency = errors.New("currency code is required")
-	ErrInvalidAmount   = errors.New("amount must be greater than zero")
-)
-
-type UnsupportedCurrencyError struct {
-	Currency string
-}
-
-func (e UnsupportedCurrencyError) Error() string {
-	return fmt.Sprintf("unsupported currency: %s", e.Currency)
-}
-
-func IsClientError(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	if errors.Is(err, ErrMissingCurrency) || errors.Is(err, ErrInvalidAmount) {
-		return true
-	}
-
-	var unsupported UnsupportedCurrencyError
-	return errors.As(err, &unsupported)
-}
 
 type RatesFetcher interface {
 	FetchRates(ctx context.Context) (ecb.RatesData, error)
@@ -71,7 +45,7 @@ func (c *Converter) GetExchangeRate(ctx context.Context, fromCurrency, toCurrenc
 
 	ratesData, err := c.fetcher.FetchRates(ctx)
 	if err != nil {
-		return ExchangeRateResult{}, fmt.Errorf("fetch rates: %w", err)
+		return ExchangeRateResult{}, errors.Join(apperr.ErrFetch, err)
 	}
 
 	rate, err := calculateRate(ratesData.Rates, from, to)
@@ -89,7 +63,7 @@ func (c *Converter) GetExchangeRate(ctx context.Context, fromCurrency, toCurrenc
 
 func (c *Converter) ConvertAmount(ctx context.Context, amount float64, fromCurrency, toCurrency string) (ConversionResult, error) {
 	if amount <= 0 {
-		return ConversionResult{}, ErrInvalidAmount
+		return ConversionResult{}, apperr.ErrInvalidAmount
 	}
 
 	from, to, err := normalizePair(fromCurrency, toCurrency)
@@ -99,7 +73,7 @@ func (c *Converter) ConvertAmount(ctx context.Context, amount float64, fromCurre
 
 	ratesData, err := c.fetcher.FetchRates(ctx)
 	if err != nil {
-		return ConversionResult{}, fmt.Errorf("fetch rates: %w", err)
+		return ConversionResult{}, errors.Join(apperr.ErrFetch, err)
 	}
 
 	rate, err := calculateRate(ratesData.Rates, from, to)
@@ -121,7 +95,7 @@ func (c *Converter) ConvertAmount(ctx context.Context, amount float64, fromCurre
 func (c *Converter) GetSupportedCurrencies(ctx context.Context) ([]string, error) {
 	ratesData, err := c.fetcher.FetchRates(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("fetch rates: %w", err)
+		return nil, errors.Join(apperr.ErrFetch, err)
 	}
 
 	currencies := make([]string, 0, len(ratesData.Rates))
@@ -138,7 +112,7 @@ func normalizePair(fromCurrency, toCurrency string) (string, string, error) {
 	to := strings.ToUpper(strings.TrimSpace(toCurrency))
 
 	if from == "" || to == "" {
-		return "", "", ErrMissingCurrency
+		return "", "", apperr.ErrMissingCurrency
 	}
 
 	return from, to, nil
@@ -147,12 +121,12 @@ func normalizePair(fromCurrency, toCurrency string) (string, string, error) {
 func calculateRate(rates map[string]float64, from, to string) (float64, error) {
 	fromRate, ok := rates[from]
 	if !ok {
-		return 0, UnsupportedCurrencyError{Currency: from}
+		return 0, apperr.UnsupportedCurrencyError{Currency: from}
 	}
 
 	toRate, ok := rates[to]
 	if !ok {
-		return 0, UnsupportedCurrencyError{Currency: to}
+		return 0, apperr.UnsupportedCurrencyError{Currency: to}
 	}
 
 	return toRate / fromRate, nil

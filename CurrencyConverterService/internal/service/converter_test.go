@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"currency-converter-service/internal/ecb"
+	apperr "currency-converter-service/internal/err"
 )
 
 type staticFetcher struct {
@@ -122,14 +123,14 @@ func TestConverter_GetExchangeRate(t *testing.T) {
 			fetcher:     staticFetcher{data: sampleRatesData()},
 			from:        "EUR",
 			to:          "",
-			errContains: ErrMissingCurrency.Error(),
+			errContains: apperr.ErrMissingCurrency.Error(),
 		},
 		{
 			name:        "fetcher error propagates",
 			fetcher:     staticFetcher{err: errors.New("upstream failed")},
 			from:        "EUR",
 			to:          "USD",
-			errContains: "fetch rates: upstream failed",
+			errContains: apperr.ErrFetch.Error(),
 		},
 		{
 			name: "missing required rate in map",
@@ -280,7 +281,7 @@ func TestConverter_ConvertAmount(t *testing.T) {
 			amount:      0,
 			from:        "EUR",
 			to:          "USD",
-			errContains: ErrInvalidAmount.Error(),
+			errContains: apperr.ErrInvalidAmount.Error(),
 		},
 		{
 			name:        "negative amount",
@@ -288,7 +289,7 @@ func TestConverter_ConvertAmount(t *testing.T) {
 			amount:      -1,
 			from:        "EUR",
 			to:          "USD",
-			errContains: ErrInvalidAmount.Error(),
+			errContains: apperr.ErrInvalidAmount.Error(),
 		},
 		{
 			name:        "unsupported currency",
@@ -304,7 +305,7 @@ func TestConverter_ConvertAmount(t *testing.T) {
 			amount:      10,
 			from:        "",
 			to:          "USD",
-			errContains: ErrMissingCurrency.Error(),
+			errContains: apperr.ErrMissingCurrency.Error(),
 		},
 		{
 			name:        "fetcher error propagates",
@@ -312,7 +313,7 @@ func TestConverter_ConvertAmount(t *testing.T) {
 			amount:      10,
 			from:        "EUR",
 			to:          "USD",
-			errContains: "fetch rates: backend down",
+			errContains: apperr.ErrFetch.Error(),
 		},
 	}
 
@@ -379,32 +380,6 @@ func TestConverter_GetSupportedCurrencies(t *testing.T) {
 	sort.Strings(want)
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("currencies should be sorted: got=%v", got)
-	}
-}
-
-func TestIsClientError(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name string
-		err  error
-		want bool
-	}{
-		{name: "nil", err: nil, want: false},
-		{name: "missing currency", err: ErrMissingCurrency, want: true},
-		{name: "invalid amount", err: ErrInvalidAmount, want: true},
-		{name: "unsupported currency", err: UnsupportedCurrencyError{Currency: "AUD"}, want: true},
-		{name: "generic error", err: errors.New("boom"), want: false},
-	}
-
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			if got := IsClientError(tt.err); got != tt.want {
-				t.Fatalf("unexpected IsClientError result: got=%v want=%v", got, tt.want)
-			}
-		})
 	}
 }
 

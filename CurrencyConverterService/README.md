@@ -1,45 +1,68 @@
-# Currency Converter SOAP Service
+# Currency Converter gRPC Service
 
-This service exposes a SOAP 1.1 API for currency exchange rates and amount conversion.
+This service exposes a gRPC API for currency exchange rate lookup and amount conversion.
 It uses the ECB daily XML feed as the exchange-rate source:
 
-- `http://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml`
+- http://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml
 
-## Endpoints
+## API Contract
 
-- `POST /soap` SOAP operations (Basic Auth required)
-- `GET /wsdl` service contract
-- `GET /health` health check
+Protocol buffer definition:
+
+- proto/currency_converter.proto
+
+Service:
+
+- CurrencyConverter
+
+RPC methods:
+
+- GetExchangeRate
+- ConvertAmount
+- GetSupportedCurrencies
 
 ## Authentication
 
-Basic Auth credentials (v1 hardcoded):
+Unary requests are protected by Basic authorization metadata via server interceptor.
 
-- Username: `admin`
-- Password: `admin`
+Set credentials through environment variables before startup:
+
+- SOAP_USERNAME
+- SOAP_PASSWORD
+
+Example:
+
+```bash
+export SOAP_USERNAME=admin
+export SOAP_PASSWORD=admin
+```
 
 ## Run
 
-From `CurrencyConverterService/`:
+From CurrencyConverterService:
 
 ```bash
 go run ./cmd/server
 ```
 
-Server starts on `:8080`.
+Server listens on :8080.
 
-## Example SOAP request
+## Generate gRPC Stubs
 
-`ConvertAmount`:
+If you modify proto/currency_converter.proto, regenerate stubs:
 
-```xml
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:cur="http://example.com/currencyconverter">
-	<soapenv:Body>
-		<cur:ConvertAmountRequest>
-			<Amount>100</Amount>
-			<FromCurrency>USD</FromCurrency>
-			<ToCurrency>CHF</ToCurrency>
-		</cur:ConvertAmountRequest>
-	</soapenv:Body>
-</soapenv:Envelope>
+```bash
+./generate-server-stub.sh
+```
+
+Prerequisites:
+
+- protoc
+- protoc-gen-go
+- protoc-gen-go-grpc
+
+## Run Tests
+
+```bash
+go test ./...
 ```
