@@ -1,9 +1,11 @@
 using AutoMapper;
 using CarRentalService.Data.Entities;
 using CarRentalService.Data.Repositories;
+using CarService.Common;
 using CarService.Exceptions;
 using CarService.Mappings;
 using CarService.Models.DTOs;
+using CarService.Services;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -15,15 +17,17 @@ public class CarServiceTests
     private readonly CarService.Services.CarService _carService;
     private readonly IMapper _mapper;
     private readonly Mock<ICarRepository> _mockCarRepository;
+    private readonly Mock<IMessageProducer> _mockMessageProducer;
 
     public CarServiceTests()
     {
         _mockCarRepository = new Mock<ICarRepository>();
+        _mockMessageProducer = new Mock<IMessageProducer>();
 
         var config = new MapperConfiguration(cfg => cfg.AddProfile<MappingProfile>(), new NullLoggerFactory());
         _mapper = config.CreateMapper();
 
-        _carService = new CarService.Services.CarService(_mockCarRepository.Object, _mapper);
+        _carService = new CarService.Services.CarService(_mockCarRepository.Object, _mapper, _mockMessageProducer.Object);
     }
 
     #region CreateCarAsync Tests
@@ -226,27 +230,28 @@ public class CarServiceTests
         carDtos[0].Year.Should().Be(2023);
     }
 
+
     [Fact]
     public async Task GetAllCarsAsync_ShouldFilterByAvailability_WhenDatesProvided()
     {
-        var overlappingBooking = new Booking
+        var overlappingBooking = new DateRange()
         {
             PickupDate = new DateTime(2024, 5, 10),
-            DropoffDate = new DateTime(2024, 5, 12)
+            DropOffDate = new DateTime(2024, 5, 12)
         };
         var cars = new List<Car>
-        {
-            new()
-            {
-                Id = 1, Make = "Toyota", Model = "Camry", Year = 2022, PriceInUsd = 25000, Status = CarStatus.Available,
-                CarBookings = new HashSet<Booking> { overlappingBooking }
-            },
-            new()
-            {
-                Id = 2, Make = "Honda", Model = "Civic", Year = 2023, PriceInUsd = 23000, Status = CarStatus.Available,
-                CarBookings = new HashSet<Booking>()
-            }
-        };
+         {
+             new()
+             {
+                 Id = 1, Make = "Toyota", Model = "Camry", Year = 2022, PriceInUsd = 25000, Status = CarStatus.Available,
+                 UnavailableDates = new HashSet<DateRange> { overlappingBooking }
+             },
+             new()
+             {
+                 Id = 2, Make = "Honda", Model = "Civic", Year = 2023, PriceInUsd = 23000, Status = CarStatus.Available,
+                 UnavailableDates = new HashSet<DateRange>()
+             }
+         };
         _mockCarRepository.Setup(repo => repo.GetAllAsync()).ReturnsAsync(cars.AsQueryable());
 
         var filter = new CarFilterDto
@@ -387,9 +392,13 @@ public class CarServiceTests
             c.Make == "Toyota" &&
             c.Model == "Camry Updated" &&
             c.Year == 2023 &&
-            c.PriceInUsd == 26000
+            c.PriceInUsd == 26000 &&
+            c.Status == CarStatus.Available
         )), Times.Once);
+        _mockMessageProducer.Verify(mp => mp.SendMaintenanceInfoMessageAsync(It.IsAny<MaintainanceStartInfo>()), Times.Never);
     }
+
+
 
     [Fact]
     public async Task UpdateCarAsync_ShouldThrowNotFoundException_WhenCarDoesNotExist()
@@ -453,18 +462,10 @@ public class CarServiceTests
             Status = CarStatus.Available
         };
 
-        var updatedCar = new Car
-        {
-            Id = 1,
-            Make = "Toyota",
-            Model = "Camry",
-            Year = 2022,
-            PriceInUsd = 25000,
-            Status = CarStatus.Maintenance
-        };
-
         _mockCarRepository.Setup(repo => repo.GetByIdAsync(1)).ReturnsAsync(existingCar);
         _mockCarRepository.Setup(repo => repo.SaveChangesAsync()).Returns(Task.CompletedTask);
+        _mockMessageProducer.Setup(mp => mp.SendMaintenanceInfoMessageAsync(It.IsAny<MaintainanceStartInfo>()))
+            .Returns(Task.CompletedTask);
 
         var result = await _carService.SetCarStatusAsync(1, CarStatus.Maintenance);
 
@@ -473,6 +474,7 @@ public class CarServiceTests
         existingCar.Status.Should().Be(CarStatus.Maintenance);
         _mockCarRepository.Verify(repo => repo.GetByIdAsync(1), Times.Once);
         _mockCarRepository.Verify(repo => repo.SaveChangesAsync(), Times.Once);
+        _mockMessageProducer.Verify(mp => mp.SendMaintenanceInfoMessageAsync(It.Is<MaintainanceStartInfo>(m => m.CarId == 1 && m.StartDate == DateTime.Now.Date)), Times.Once);
     }
 
     [Fact]
@@ -484,7 +486,8 @@ public class CarServiceTests
 
         await act.Should().ThrowAsync<NotFoundException>();
         _mockCarRepository.Verify(repo => repo.GetByIdAsync(999), Times.Once);
-        _mockCarRepository.Verify(repo => repo.UpdateAsync(It.IsAny<Car>()), Times.Never);
+        _mockCarRepository.Verify(repo => repo.SaveChangesAsync(), Times.Never);
+        _mockMessageProducer.Verify(mp => mp.SendMaintenanceInfoMessageAsync(It.IsAny<MaintainanceStartInfo>()), Times.Never);
     }
 
     [Theory]
@@ -502,24 +505,167 @@ public class CarServiceTests
             Status = CarStatus.Available
         };
 
-        var updatedCar = new Car
-        {
-            Id = 1,
-            Make = "Toyota",
-            Model = "Camry",
-            Year = 2022,
-            PriceInUsd = 25000,
-            Status = newStatus
-        };
+
 
         _mockCarRepository.Setup(repo => repo.GetByIdAsync(1)).ReturnsAsync(existingCar);
         _mockCarRepository.Setup(repo => repo.SaveChangesAsync()).Returns(Task.CompletedTask);
+        _mockMessageProducer.Setup(mp => mp.SendMaintenanceInfoMessageAsync(It.IsAny<MaintainanceStartInfo>()))
+            .Returns(Task.CompletedTask);
 
         var result = await _carService.SetCarStatusAsync(1, newStatus);
 
         result.Should().NotBeNull();
         result!.Status.Should().Be(newStatus);
         existingCar.Status.Should().Be(newStatus); // Verify the entity was modified
+        _mockCarRepository.Verify(repo => repo.GetByIdAsync(1), Times.Once);
+        _mockCarRepository.Verify(repo => repo.SaveChangesAsync(), Times.Once);
+        if (newStatus == CarStatus.Maintenance)
+        {
+            _mockMessageProducer.Verify(mp => mp.SendMaintenanceInfoMessageAsync(It.Is<MaintainanceStartInfo>(m => m.CarId == 1 && m.StartDate == DateTime.Now.Date)), Times.Once);
+        }
+        else
+        {
+            _mockMessageProducer.Verify(mp => mp.SendMaintenanceInfoMessageAsync(It.IsAny<MaintainanceStartInfo>()), Times.Never);
+        }
+    }
+
+    #endregion
+
+    #region HandleBookingInfoAsync Tests
+
+    [Fact]
+    public async Task HandleBookingInfoAsync_ShouldSendUnavailable_WhenCarNotFound()
+    {
+        var bookingInfo = new BookingInfo
+        {
+            CarId = 10,
+            BookingId = 200,
+            PickupDate = new DateTime(2024, 6, 1),
+            DropoffDate = new DateTime(2024, 6, 5),
+            Type = BookingType.Check
+        };
+
+        _mockCarRepository.Setup(repo => repo.GetByIdAsync(10)).ReturnsAsync((Car?)null);
+        _mockMessageProducer.Setup(mp => mp.SendCarInfoMessageAsync(It.IsAny<CarInfo>()))
+            .Returns(Task.CompletedTask);
+
+        await _carService.HandleBookingInfoAsync(bookingInfo);
+
+        _mockMessageProducer.Verify(mp => mp.SendCarInfoMessageAsync(It.Is<CarInfo>(info =>
+            info.CarId == 10 &&
+            info.BookingId == 200 &&
+            info.IsAvailable == false
+        )), Times.Once);
+        _mockCarRepository.Verify(repo => repo.AddUnavailableDateRangeAsync(It.IsAny<Car>(), It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<DateTime>()), Times.Never);
+        _mockCarRepository.Verify(repo => repo.RemoveUnavailableDateRangeAsync(It.IsAny<Car>(), It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<DateTime>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task HandleBookingInfoAsync_ShouldAddUnavailableAndSendAvailableInfo_WhenCheckAndCarAvailable()
+    {
+        var car = new Car
+        {
+            Id = 5,
+            Make = "Toyota",
+            Model = "Corolla",
+            Year = 2021,
+            PriceInUsd = 20000,
+            Status = CarStatus.Available
+        };
+        var bookingInfo = new BookingInfo
+        {
+            CarId = 5,
+            BookingId = 300,
+            PickupDate = new DateTime(2024, 7, 10),
+            DropoffDate = new DateTime(2024, 7, 12),
+            Type = BookingType.Check
+        };
+
+        _mockCarRepository.Setup(repo => repo.GetByIdAsync(5)).ReturnsAsync(car);
+        _mockCarRepository.Setup(repo => repo.AddUnavailableDateRangeAsync(car, bookingInfo.BookingId, bookingInfo.PickupDate, bookingInfo.DropoffDate))
+            .Returns(Task.CompletedTask);
+        _mockMessageProducer.Setup(mp => mp.SendCarInfoMessageAsync(It.IsAny<CarInfo>()))
+            .Returns(Task.CompletedTask);
+
+        await _carService.HandleBookingInfoAsync(bookingInfo);
+
+        _mockCarRepository.Verify(repo => repo.AddUnavailableDateRangeAsync(car, bookingInfo.BookingId, bookingInfo.PickupDate, bookingInfo.DropoffDate), Times.Once);
+        _mockMessageProducer.Verify(mp => mp.SendCarInfoMessageAsync(It.Is<CarInfo>(info =>
+            info.CarId == 5 &&
+            info.BookingId == 300 &&
+            info.IsAvailable == true &&
+            info.Make == "Toyota" &&
+            info.Model == "Corolla" &&
+            info.Year == 2021 &&
+            info.PriceInUsd == 20000
+        )), Times.Once);
+        _mockCarRepository.Verify(repo => repo.RemoveUnavailableDateRangeAsync(It.IsAny<Car>(), It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<DateTime>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task HandleBookingInfoAsync_ShouldSendUnavailableInfo_WhenCheckAndCarNotAvailable()
+    {
+        var car = new Car
+        {
+            Id = 6,
+            Make = "Honda",
+            Model = "Civic",
+            Year = 2020,
+            PriceInUsd = 18000,
+            Status = CarStatus.Maintenance
+        };
+        var bookingInfo = new BookingInfo
+        {
+            CarId = 6,
+            BookingId = 400,
+            PickupDate = new DateTime(2024, 8, 1),
+            DropoffDate = new DateTime(2024, 8, 3),
+            Type = BookingType.Check
+        };
+
+        _mockCarRepository.Setup(repo => repo.GetByIdAsync(6)).ReturnsAsync(car);
+        _mockMessageProducer.Setup(mp => mp.SendCarInfoMessageAsync(It.IsAny<CarInfo>()))
+            .Returns(Task.CompletedTask);
+
+        await _carService.HandleBookingInfoAsync(bookingInfo);
+
+        _mockCarRepository.Verify(repo => repo.AddUnavailableDateRangeAsync(It.IsAny<Car>(), It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<DateTime>()), Times.Never);
+        _mockMessageProducer.Verify(mp => mp.SendCarInfoMessageAsync(It.Is<CarInfo>(info =>
+            info.CarId == 6 &&
+            info.BookingId == 400 &&
+            info.IsAvailable == false
+        )), Times.Once);
+    }
+
+    [Fact]
+    public async Task HandleBookingInfoAsync_ShouldRemoveUnavailable_WhenCanceled()
+    {
+        var car = new Car
+        {
+            Id = 7,
+            Make = "Ford",
+            Model = "Focus",
+            Year = 2019,
+            PriceInUsd = 15000,
+            Status = CarStatus.Available
+        };
+        var bookingInfo = new BookingInfo
+        {
+            CarId = 7,
+            BookingId = 500,
+            PickupDate = new DateTime(2024, 9, 5),
+            DropoffDate = new DateTime(2024, 9, 9),
+            Type = BookingType.Canceled
+        };
+
+        _mockCarRepository.Setup(repo => repo.GetByIdAsync(7)).ReturnsAsync(car);
+        _mockCarRepository.Setup(repo => repo.RemoveUnavailableDateRangeAsync(car, bookingInfo.BookingId, bookingInfo.PickupDate, bookingInfo.DropoffDate))
+            .Returns(Task.CompletedTask);
+
+        await _carService.HandleBookingInfoAsync(bookingInfo);
+
+        _mockCarRepository.Verify(repo => repo.RemoveUnavailableDateRangeAsync(car, bookingInfo.BookingId, bookingInfo.PickupDate, bookingInfo.DropoffDate), Times.Once);
+        _mockMessageProducer.Verify(mp => mp.SendCarInfoMessageAsync(It.IsAny<CarInfo>()), Times.Never);
     }
 
     #endregion

@@ -24,7 +24,7 @@ public class Program
 
         builder.Services.AddHttpClient();
 
-        builder.Services.AddDbContext<CarRentalDbContext>(options =>
+        builder.Services.AddDbContext<BookingDbContext>(options =>
             options.UseSqlServer(
                 builder.Configuration.GetConnectionString("DefaultConnection"),
                 sqlOptions => sqlOptions.MigrationsAssembly("CarRentalService.Web")));
@@ -127,12 +127,13 @@ public class Program
             client.ClientCredentials.UserName.Password = currencyConverterSettings.Password;
             return client;
         });
-
-        builder.Services.AddScoped<ICarRepository, CarRepository>();
+        builder.Services.AddSingleton<RabbitMQSettings>(builder.Configuration.GetSection("RabbitMQ").Get<RabbitMQSettings>());
+        builder.Services.AddScoped<IMessageProducer, MessageProducer>();
         builder.Services.AddScoped<IBookingRepository, BookingRepository>();
         builder.Services.AddScoped<IBookingService, Services.BookingService>();
         builder.Services.AddScoped<IUserService, UserService>();
         builder.Services.AddScoped<IExtCurrencyConvertService, ExtCurrencyConvertService>();
+        builder.Services.AddHostedService<CarSubscriber>();
 
         builder.Services.AddAutoMapper(cfg => { }, typeof(Program));
 
@@ -175,7 +176,7 @@ public class Program
 
         if (!skipDbMigration)
         {
-            app.Services.CreateScope().ServiceProvider.GetRequiredService<CarRentalDbContext>().Database.Migrate();
+            app.Services.CreateScope().ServiceProvider.GetRequiredService<BookingDbContext>().Database.Migrate();
         }
 
         app.UseExceptionHandler();

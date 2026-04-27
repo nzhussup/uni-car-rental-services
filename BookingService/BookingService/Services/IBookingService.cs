@@ -1,3 +1,4 @@
+using BookingService.Common;
 using BookingService.Models.DTOs;
 using CarRentalService.Data.Entities;
 
@@ -14,4 +15,6 @@ public interface IBookingService
     Task<bool> DeleteBookingAsync(int id);
     Task<BookingDto> SetBookingStatusAsync(int id, BookingStatus bookingStatus);
     Task<BookingDto> CancelBookingAsync(Guid userId, int id);
+    Task HandleMaintainanceInfoAsync(MaintainanceStartInfo startInfo);
+    Task HandleCarInfoAsync(CarInfo carInfo);
 }

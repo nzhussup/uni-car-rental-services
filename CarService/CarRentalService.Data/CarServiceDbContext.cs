@@ -3,11 +3,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CarRentalService.Data;
 
-public class CarRentalDbContext(DbContextOptions<CarRentalDbContext> options) : DbContext(options)
+public class CarServiceDbContext(DbContextOptions<CarServiceDbContext> options) : DbContext(options)
 {
     public DbSet<Car> Cars { get; set; }
 
-    public DbSet<Booking> Bookings { get; set; }
+    public DbSet<DateRange> CarUnavailableDates { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -19,11 +19,11 @@ public class CarRentalDbContext(DbContextOptions<CarRentalDbContext> options) : 
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
         });
 
-        modelBuilder.Entity<Booking>(entity =>
+        modelBuilder.Entity<DateRange>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
-            entity.HasOne(e => e.Car).WithMany(x => x.CarBookings).HasForeignKey(e => e.CarId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Car).WithMany(e => e.UnavailableDates).HasForeignKey(e => e.CarId);
         });
     }
 }

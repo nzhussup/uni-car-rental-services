@@ -1,4 +1,5 @@
 using AutoMapper;
+using BookingService.Common;
 using BookingService.Exceptions;
 using BookingService.Models.DTOs;
 using BookingService.Services;
@@ -16,17 +17,20 @@ public class BookingServiceTests
 
     private readonly BookingService.Services.BookingService _bookingService;
     private readonly Mock<IBookingRepository> _mockBookingRepository;
-    private readonly Mock<ICarRepository> _mockCarRepository;
     private readonly Mock<IUserService> _mockUserService;
+    private readonly Mock<IMessageProducer> _mockMessageProducer;
     private readonly IMapper _mapper;
 
     public BookingServiceTests()
     {
         _mockBookingRepository = new Mock<IBookingRepository>();
-        _mockCarRepository = new Mock<ICarRepository>();
         _mockUserService = new Mock<IUserService>();
+        _mockMessageProducer = new Mock<IMessageProducer>();
 
         _mockBookingRepository.Setup(repo => repo.SaveChangesAsync()).Returns(Task.CompletedTask);
+        _mockMessageProducer
+            .Setup(producer => producer.SendBookingInfoAsync(It.IsAny<BookingInfo>()))
+            .Returns(Task.CompletedTask);
         _mockUserService
             .Setup(service => service.GetUserByIdAsync(It.IsAny<Guid>()))
             .ReturnsAsync((Guid id) => new UserDto
@@ -42,14 +46,24 @@ public class BookingServiceTests
             cfg.CreateMap<Booking, BookingDto>()
                 .ForMember(d => d.TotalCostInUsd, opt => opt.MapFrom(s => s.TotalCostInUsd));
             cfg.CreateMap<CreateBookingDto, Booking>();
+            cfg.CreateMap<CreateBookingDto, BookingInfo>();
+            cfg.CreateMap<Booking, BookingInfo>()
+                .ForMember(dest => dest.BookingId, opt => opt.MapFrom(src => src.Id));
+            cfg.CreateMap<BookingStatus, BookingType>()
+                .ConvertUsing((src, dest) => src switch
+                {
+                    BookingStatus.Pending => BookingType.Check,
+                    BookingStatus.Canceled => BookingType.Canceled,
+                    _ => BookingType.Canceled
+                });
         }, new NullLoggerFactory());
         _mapper = config.CreateMapper();
 
         _bookingService = new BookingService.Services.BookingService(
             _mockBookingRepository.Object,
-            _mockCarRepository.Object,
             _mapper,
-            _mockUserService.Object);
+            _mockUserService.Object,
+            _mockMessageProducer.Object);
     }
 
     #region GetAllBookingsAsync Tests
@@ -261,47 +275,7 @@ public class BookingServiceTests
     }
 
     [Fact]
-    public async Task CreateBookingAsnyc_ShouldThrowNotFoundException_WhenCarDoesNotExist()
-    {
-        var createBookingDto = new CreateBookingDto
-        {
-            CarId = 123,
-            PickupDate = TestBaseDate.AddDays(1),
-            DropoffDate = TestBaseDate.AddDays(3)
-        };
-        var userId = Guid.NewGuid();
-
-        _mockCarRepository.Setup(repo => repo.GetByIdAsync(123)).ReturnsAsync((Car?)null);
-
-        var act = async () => await _bookingService.CreateBookingAsnyc(userId, createBookingDto);
-
-        await act.Should().ThrowAsync<NotFoundException>();
-        _mockCarRepository.Verify(repo => repo.GetByIdAsync(123), Times.Once);
-        _mockBookingRepository.Verify(repo => repo.AddAsync(It.IsAny<Booking>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task CreateBookingAsnyc_ShouldThrowNotAllowedException_WhenCarIsInMaintenance()
-    {
-        var createBookingDto = new CreateBookingDto
-        {
-            CarId = 10,
-            PickupDate = TestBaseDate.AddDays(1),
-            DropoffDate = TestBaseDate.AddDays(3)
-        };
-        var userId = Guid.NewGuid();
-
-        var car = CreateCar(id: 10, status: CarStatus.Maintenance);
-        _mockCarRepository.Setup(repo => repo.GetByIdAsync(10)).ReturnsAsync(car);
-
-        var act = async () => await _bookingService.CreateBookingAsnyc(userId, createBookingDto);
-
-        await act.Should().ThrowAsync<NotAllowedException>();
-        _mockBookingRepository.Verify(repo => repo.AddAsync(It.IsAny<Booking>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task CreateBookingAsnyc_ShouldAllowBooking_WhenCarStatusIsAvailable_AndDatesDoNotOverlap()
+    public async Task CreateBookingAsnyc_ShouldSendBookingInfo_WhenNoOverlap()
     {
         var createBookingDto = new CreateBookingDto
         {
@@ -311,8 +285,6 @@ public class BookingServiceTests
         };
         var userId = Guid.NewGuid();
 
-        var car = CreateCar(id: 10, status: CarStatus.Available);
-        _mockCarRepository.Setup(repo => repo.GetByIdAsync(10)).ReturnsAsync(car);
         _mockBookingRepository.Setup(repo => repo.GetAllAsync()).ReturnsAsync(new List<Booking>().AsQueryable());
         _mockBookingRepository.Setup(repo => repo.AddAsync(It.IsAny<Booking>())).ReturnsAsync(
             CreateBooking(id: 99, carId: 10, status: BookingStatus.Booked, userId: userId));
@@ -321,7 +293,13 @@ public class BookingServiceTests
 
         result.Should().NotBeNull();
         result.Status.Should().Be(BookingStatus.Booked);
-        _mockBookingRepository.Verify(repo => repo.AddAsync(It.IsAny<Booking>()), Times.Once);
+        _mockBookingRepository.Verify(repo => repo.AddAsync(It.Is<Booking>(b => b.CarId == 10 && b.UserId == userId)), Times.Once);
+        _mockMessageProducer.Verify(
+            producer => producer.SendBookingInfoAsync(It.Is<BookingInfo>(info =>
+                info.CarId == 10 &&
+                info.PickupDate == createBookingDto.PickupDate &&
+                info.DropoffDate == createBookingDto.DropoffDate)),
+            Times.Once);
     }
 
     [Fact]
@@ -335,8 +313,7 @@ public class BookingServiceTests
         };
         var userId = Guid.NewGuid();
 
-        var car = CreateCar(id: 10, status: CarStatus.Available);
-        _mockCarRepository.Setup(repo => repo.GetByIdAsync(10)).ReturnsAsync(car);
+
 
         var bookings = new List<Booking>
         {
@@ -355,6 +332,9 @@ public class BookingServiceTests
 
         result.Should().NotBeNull();
         _mockBookingRepository.Verify(repo => repo.AddAsync(It.IsAny<Booking>()), Times.Once);
+        _mockMessageProducer.Verify(
+            producer => producer.SendBookingInfoAsync(It.IsAny<BookingInfo>()),
+            Times.Once);
     }
 
     [Fact]
@@ -368,8 +348,7 @@ public class BookingServiceTests
         };
         var userId = Guid.NewGuid();
 
-        var car = CreateCar(id: 10, status: CarStatus.Available);
-        _mockCarRepository.Setup(repo => repo.GetByIdAsync(10)).ReturnsAsync(car);
+
 
         var activeOverlappingBooking = CreateBooking(id: 1, carId: 10, status: BookingStatus.Booked);
         activeOverlappingBooking.PickupDate = TestBaseDate.AddDays(11);
@@ -383,10 +362,13 @@ public class BookingServiceTests
         await act.Should().ThrowAsync<NotAllowedException>()
             .WithMessage("*already booked for the selected dates*");
         _mockBookingRepository.Verify(repo => repo.AddAsync(It.IsAny<Booking>()), Times.Never);
+        _mockMessageProducer.Verify(
+            producer => producer.SendBookingInfoAsync(It.IsAny<BookingInfo>()),
+            Times.Never);
     }
 
     [Fact]
-    public async Task CreateBookingAsnyc_ShouldCreateAndReturnBooking_WhenCarIsAvailable()
+    public async Task CreateBookingAsnyc_ShouldCreateAndReturnBooking_WhenNoOverlap()
     {
         var createBookingDto = new CreateBookingDto
         {
@@ -396,8 +378,7 @@ public class BookingServiceTests
         };
         var userId = Guid.NewGuid();
 
-        var car = CreateCar(id: 10, status: CarStatus.Available);
-        _mockCarRepository.Setup(repo => repo.GetByIdAsync(10)).ReturnsAsync(car);
+
         _mockBookingRepository.Setup(repo => repo.GetAllAsync()).ReturnsAsync(new List<Booking>().AsQueryable());
 
         var createdBooking = CreateBooking(id: 99, carId: 10, status: BookingStatus.Booked);
@@ -411,6 +392,9 @@ public class BookingServiceTests
         result.Status.Should().Be(BookingStatus.Booked);
 
         _mockBookingRepository.Verify(repo => repo.AddAsync(It.Is<Booking>(b => b.CarId == 10)), Times.Once);
+        _mockMessageProducer.Verify(
+            producer => producer.SendBookingInfoAsync(It.IsAny<BookingInfo>()),
+            Times.Once);
     }
 
     #endregion
@@ -420,23 +404,32 @@ public class BookingServiceTests
     [Fact]
     public async Task DeleteBookingAsync_ShouldReturnTrue_WhenBookingIsDeleted()
     {
+        var booking = CreateBooking(id: 1, carId: 10, status: BookingStatus.Booked);
+        _mockBookingRepository.Setup(repo => repo.GetByIdAsync(1)).ReturnsAsync(booking);
         _mockBookingRepository.Setup(repo => repo.DeleteAsync(1)).ReturnsAsync(true);
 
         var result = await _bookingService.DeleteBookingAsync(1);
 
         result.Should().BeTrue();
         _mockBookingRepository.Verify(repo => repo.DeleteAsync(1), Times.Once);
+        _mockMessageProducer.Verify(
+            producer => producer.SendBookingInfoAsync(It.Is<BookingInfo>(info =>
+                info.BookingId == 1 && info.Type == BookingType.Canceled)),
+            Times.Once);
     }
 
     [Fact]
     public async Task DeleteBookingAsync_ShouldThrowNotFoundException_WhenBookingDoesNotExist()
     {
-        _mockBookingRepository.Setup(repo => repo.DeleteAsync(999)).ReturnsAsync(false);
+        _mockBookingRepository.Setup(repo => repo.GetByIdAsync(999)).ReturnsAsync((Booking?)null);
 
         var act = async () => await _bookingService.DeleteBookingAsync(999);
 
         await act.Should().ThrowAsync<NotFoundException>();
-        _mockBookingRepository.Verify(repo => repo.DeleteAsync(999), Times.Once);
+        _mockBookingRepository.Verify(repo => repo.DeleteAsync(999), Times.Never);
+        _mockMessageProducer.Verify(
+            producer => producer.SendBookingInfoAsync(It.IsAny<BookingInfo>()),
+            Times.Never);
     }
 
     #endregion
@@ -454,6 +447,9 @@ public class BookingServiceTests
         await act.Should().ThrowAsync<NotFoundException>();
         _mockBookingRepository.Verify(repo => repo.GetByIdAsync(1), Times.Once);
         _mockBookingRepository.Verify(repo => repo.SaveChangesAsync(), Times.Never);
+        _mockMessageProducer.Verify(
+            producer => producer.SendBookingInfoAsync(It.IsAny<BookingInfo>()),
+            Times.Never);
     }
 
     [Fact]
@@ -467,19 +463,9 @@ public class BookingServiceTests
 
         await act.Should().ThrowAsync<NotAllowedException>();
         _mockBookingRepository.Verify(repo => repo.SaveChangesAsync(), Times.Never);
-    }
-
-    [Fact]
-    public async Task CancelBooking_ShouldThrowNotAllowedException_WhenBookingIsNotBooked()
-    {
-        var userId = Guid.NewGuid();
-        var booking = CreateBooking(id: 1, carId: 10, status: BookingStatus.PickedUp, userId: userId);
-        _mockBookingRepository.Setup(repo => repo.GetByIdAsync(1)).ReturnsAsync(booking);
-
-        var act = async () => await _bookingService.CancelBookingAsync(userId, 1);
-
-        await act.Should().ThrowAsync<NotAllowedException>();
-        _mockBookingRepository.Verify(repo => repo.SaveChangesAsync(), Times.Never);
+        _mockMessageProducer.Verify(
+            producer => producer.SendBookingInfoAsync(It.IsAny<BookingInfo>()),
+            Times.Never);
     }
 
     [Fact]
@@ -494,6 +480,9 @@ public class BookingServiceTests
         result.Should().NotBeNull();
         result.Status.Should().Be(BookingStatus.Canceled);
         _mockBookingRepository.Verify(repo => repo.SaveChangesAsync(), Times.Once);
+        _mockMessageProducer.Verify(
+            producer => producer.SendBookingInfoAsync(It.IsAny<BookingInfo>()),
+            Times.Once);
     }
 
     #endregion
@@ -525,18 +514,6 @@ public class BookingServiceTests
     }
 
     [Fact]
-    public async Task SetBookingStatusAsync_ShouldSetBooked()
-    {
-        var booking = CreateBooking(id: 1, carId: 10, status: BookingStatus.PickedUp);
-        _mockBookingRepository.Setup(repo => repo.GetByIdAsync(1)).ReturnsAsync(booking);
-
-        var result = await _bookingService.SetBookingStatusAsync(1, BookingStatus.Booked);
-
-        result.Status.Should().Be(BookingStatus.Booked);
-        _mockBookingRepository.Verify(repo => repo.SaveChangesAsync(), Times.Once);
-    }
-
-    [Fact]
     public async Task SetBookingStatusAsync_ShouldSetCanceled()
     {
         var booking = CreateBooking(id: 1, carId: 10, status: BookingStatus.Booked);
@@ -546,6 +523,9 @@ public class BookingServiceTests
 
         result.Status.Should().Be(BookingStatus.Canceled);
         _mockBookingRepository.Verify(repo => repo.SaveChangesAsync(), Times.Once);
+        _mockMessageProducer.Verify(
+            producer => producer.SendBookingInfoAsync(It.IsAny<BookingInfo>()),
+            Times.Once);
     }
 
     [Fact]
@@ -573,45 +553,154 @@ public class BookingServiceTests
     }
 
     [Fact]
-    public async Task SetBookingStatusAsync_ShouldSetCompleted()
+    public async Task SetBookingStatusAsync_ShouldThrowArgumentOutOfRangeException_WhenStatusIsInvalid()
     {
-        var booking = CreateBooking(id: 1, carId: 10, status: BookingStatus.ReturnLate);
+        var booking = CreateBooking(id: 1, carId: 10, status: BookingStatus.Booked);
         _mockBookingRepository.Setup(repo => repo.GetByIdAsync(1)).ReturnsAsync(booking);
 
-        var result = await _bookingService.SetBookingStatusAsync(1, BookingStatus.Completed);
+        var act = async () => await _bookingService.SetBookingStatusAsync(1, (BookingStatus)999);
 
-        result.Status.Should().Be(BookingStatus.Completed);
+        await act.Should().ThrowAsync<ArgumentOutOfRangeException>();
+        _mockBookingRepository.Verify(repo => repo.SaveChangesAsync(), Times.Never);
+    }
+
+    #endregion
+
+    #region HandleMaintainanceInfoAsync Tests
+
+    [Fact]
+    public async Task HandleMaintainanceInfoAsync_ShouldCancelAffectedBookings()
+    {
+        var bookings = new List<Booking>
+        {
+            CreateBooking(id: 1, carId: 10, status: BookingStatus.Booked),
+            CreateBooking(id: 2, carId: 10, status: BookingStatus.PickedUp),
+            CreateBooking(id: 3, carId: 10, status: BookingStatus.Booked),
+            CreateBooking(id: 4, carId: 11, status: BookingStatus.Booked)
+        };
+        bookings[0].PickupDate = TestBaseDate.AddDays(2);
+        bookings[1].PickupDate = TestBaseDate.AddDays(5);
+        bookings[2].PickupDate = TestBaseDate.AddDays(6);
+        bookings[3].PickupDate = TestBaseDate.AddDays(1);
+
+        _mockBookingRepository.Setup(repo => repo.GetAllAsync()).ReturnsAsync(bookings.AsQueryable());
+        _mockBookingRepository.Setup(repo => repo.GetByIdAsync(It.IsAny<int>()))
+            .ReturnsAsync((int id) => bookings.FirstOrDefault(b => b.Id == id));
+
+        var startInfo = new MaintainanceStartInfo
+        {
+            CarId = 10,
+            StartDate = TestBaseDate.AddDays(5)
+        };
+
+        await _bookingService.HandleMaintainanceInfoAsync(startInfo);
+
+        bookings.First(b => b.Id == 1).Status.Should().Be(BookingStatus.Canceled);
+        bookings.First(b => b.Id == 2).Status.Should().Be(BookingStatus.Canceled);
+        bookings.First(b => b.Id == 3).Status.Should().Be(BookingStatus.Booked);
+        bookings.First(b => b.Id == 4).Status.Should().Be(BookingStatus.Booked);
+        _mockBookingRepository.Verify(repo => repo.SaveChangesAsync(), Times.Exactly(2));
+        _mockMessageProducer.Verify(
+            producer => producer.SendBookingInfoAsync(It.IsAny<BookingInfo>()),
+            Times.Exactly(2));
+    }
+
+    #endregion
+
+    #region HandleCarInfoAsync Tests
+
+    [Fact]
+    public async Task HandleCarInfoAsync_ShouldUpdateBooking_WhenBookingExists()
+    {
+        var booking = CreateBooking(id: 1, carId: 10, status: BookingStatus.Pending);
+        booking.PickupDate = TestBaseDate.AddDays(1);
+        booking.DropoffDate = TestBaseDate.AddDays(4);
+        _mockBookingRepository.Setup(repo => repo.GetByIdAsync(1)).ReturnsAsync(booking);
+
+        var carInfo = new CarInfo
+        {
+            BookingId = 1,
+            CarId = 10,
+            Make = "Honda",
+            Model = "Civic",
+            Year = 2024,
+            PriceInUsd = 100,
+            IsAvailable = true
+        };
+
+        await _bookingService.HandleCarInfoAsync(carInfo);
+
+        booking.Make.Should().Be("Honda");
+        booking.Model.Should().Be("Civic");
+        booking.CarYear.Should().Be(2024);
+        booking.Status.Should().Be(BookingStatus.Booked);
+        booking.TotalCostInUsd.Should().Be(300);
         _mockBookingRepository.Verify(repo => repo.SaveChangesAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task HandleCarInfoAsync_ShouldCancelBooking_WhenCarIsUnavailable()
+    {
+        var booking = CreateBooking(id: 2, carId: 10, status: BookingStatus.Pending);
+        booking.PickupDate = TestBaseDate.AddDays(2);
+        booking.DropoffDate = TestBaseDate.AddDays(5);
+        _mockBookingRepository.Setup(repo => repo.GetByIdAsync(2)).ReturnsAsync(booking);
+
+        var carInfo = new CarInfo
+        {
+            BookingId = 2,
+            CarId = 10,
+            Make = "Ford",
+            Model = "Focus",
+            Year = 2023,
+            PriceInUsd = 120,
+            IsAvailable = false
+        };
+
+        await _bookingService.HandleCarInfoAsync(carInfo);
+
+        booking.Make.Should().Be("Ford");
+        booking.Model.Should().Be("Focus");
+        booking.CarYear.Should().Be(2023);
+        booking.Status.Should().Be(BookingStatus.Canceled);
+        booking.TotalCostInUsd.Should().Be(360);
+        _mockBookingRepository.Verify(repo => repo.SaveChangesAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task HandleCarInfoAsync_ShouldReturnWithoutChanges_WhenBookingIsMissing()
+    {
+        _mockBookingRepository.Setup(repo => repo.GetByIdAsync(999)).ReturnsAsync((Booking?)null);
+
+        var carInfo = new CarInfo
+        {
+            BookingId = 999,
+            CarId = 10,
+            Make = "Honda",
+            Model = "Civic",
+            Year = 2024,
+            PriceInUsd = 100,
+            IsAvailable = false
+        };
+
+        await _bookingService.HandleCarInfoAsync(carInfo);
+
+        _mockBookingRepository.Verify(repo => repo.SaveChangesAsync(), Times.Never);
     }
 
     #endregion
 
     private static Booking CreateBooking(int id, int carId, BookingStatus status, Guid userId = default)
     {
-        var car = CreateCar(carId, CarStatus.Available);
         return new Booking
         {
             Id = id,
             CarId = carId,
-            Car = car,
             UserId = userId,
             BookingDate = TestBaseDate.AddDays(id),
             PickupDate = TestBaseDate.AddDays(id + 1),
             DropoffDate = TestBaseDate.AddDays(id + 3),
             TotalCostInUsd = 150,
-            Status = status
-        };
-    }
-
-    private static Car CreateCar(int id, CarStatus status)
-    {
-        return new Car
-        {
-            Id = id,
-            Make = "Toyota",
-            Model = "Camry",
-            Year = 2022,
-            PriceInUsd = 25000,
             Status = status
         };
     }

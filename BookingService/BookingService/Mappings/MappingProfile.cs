@@ -1,4 +1,5 @@
 using AutoMapper;
+using BookingService.Common;
 using BookingService.Models.DTOs;
 using BookingService.Models.Responses;
 using CarRentalService.Data.Entities;
@@ -21,5 +22,15 @@ public class MappingProfile : Profile
         CreateMap<CreateBookingDto, Booking>();
         CreateMap<UserRepresentation, UserDto>()
             .ForMember(dest => dest.Id, opt => opt.MapFrom(src => Guid.Parse(src.Id)));
+        CreateMap<Booking, BookingInfo>()
+            .ForMember(dest => dest.BookingId, opt => opt.MapFrom(src => src.Id))
+            .ForMember(dest => dest.Type, opt => opt.MapFrom(src => src.Status)); ;
+        CreateMap<BookingStatus, BookingType>()
+            .ConvertUsing((src, dest) => src switch
+            {
+                BookingStatus.Pending => BookingType.Check,
+                BookingStatus.Canceled => BookingType.Canceled,
+                _ => BookingType.Canceled
+            });
     }
 }

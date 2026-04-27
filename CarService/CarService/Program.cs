@@ -24,7 +24,7 @@ public class Program
 
         builder.Services.AddHttpClient();
 
-        builder.Services.AddDbContext<CarRentalDbContext>(options =>
+        builder.Services.AddDbContext<CarServiceDbContext>(options =>
             options.UseSqlServer(
                 builder.Configuration.GetConnectionString("DefaultConnection"),
                 sqlOptions => sqlOptions.MigrationsAssembly("CarRentalService.Web")));
@@ -128,10 +128,13 @@ public class Program
             return client;
         });
 
+
+        builder.Services.AddSingleton<RabbitMQSettings>(builder.Configuration.GetSection("RabbitMQ").Get<RabbitMQSettings>());
+        builder.Services.AddScoped<IMessageProducer, MessageProducer>();
         builder.Services.AddScoped<ICarRepository, CarRepository>();
-        builder.Services.AddScoped<IBookingRepository, BookingRepository>();
         builder.Services.AddScoped<ICarService, Services.CarService>();
         builder.Services.AddScoped<IExtCurrencyConvertService, ExtCurrencyConvertService>();
+        builder.Services.AddHostedService<BookingSubscriber>();
 
         builder.Services.AddAutoMapper(cfg => { }, typeof(Program));
 
@@ -174,7 +177,7 @@ public class Program
 
         if (!skipDbMigration)
         {
-            app.Services.CreateScope().ServiceProvider.GetRequiredService<CarRentalDbContext>().Database.Migrate();
+            app.Services.CreateScope().ServiceProvider.GetRequiredService<CarServiceDbContext>().Database.Migrate();
         }
 
         app.UseExceptionHandler();

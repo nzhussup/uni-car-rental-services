@@ -9,7 +9,13 @@ public class Booking
 
     public int CarId { get; set; }
 
-    public Car Car { get; set; }
+    public string Make { get; set; } = string.Empty;
+
+    public string Model { get; set; } = string.Empty;
+
+    public int CarYear { get; set; }
+
+    public decimal CarPriceInUsd { get; set; }
 
     public Guid UserId { get; set; }
 
@@ -25,5 +31,5 @@ public class Booking
     [Column(TypeName = "decimal(18,2)")]
     public decimal TotalCostInUsd { get; set; }
 
-    [Required] public BookingStatus Status { get; set; } = BookingStatus.Booked;
+    [Required] public BookingStatus Status { get; set; } = BookingStatus.Pending;
 }

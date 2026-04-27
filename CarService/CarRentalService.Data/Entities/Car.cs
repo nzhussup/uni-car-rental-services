@@ -19,5 +19,5 @@ public class Car
 
     [Required] public CarStatus Status { get; set; } = CarStatus.Available;
 
-    public HashSet<Booking> CarBookings { get; set; } = new HashSet<Booking>();
+    public HashSet<DateRange> UnavailableDates { get; set; } = new HashSet<DateRange>();
 }

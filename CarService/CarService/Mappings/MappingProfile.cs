@@ -1,5 +1,6 @@
 using AutoMapper;
 using CarRentalService.Data.Entities;
+using CarService.Common;
 using CarService.Models.DTOs;
 using CarService.Models.Responses;
 
@@ -19,5 +20,7 @@ public class MappingProfile : Profile
         CreateMap<QueryResponse<CarDto>, QueryResponse<CarResponse>>();
         CreateMap<CreateCarDto, Car>();
         CreateMap<UpdateCarDto, Car>();
+        CreateMap<Car, CarInfo>()
+            .ForMember(dest => dest.CarId, opt => opt.MapFrom(src => src.Id));
     }
 }

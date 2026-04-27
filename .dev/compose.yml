@@ -38,6 +38,24 @@
       start_period: 20s
     networks:
       - carrental-network
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    restart: always
+    ports:
+      # Standard AMQP protocol port
+      - "5672:5672"
+      # Management UI port
+      - "15672:15672"
+    environment:
+      # Set your own credentials here
+      RABBITMQ_DEFAULT_USER: emre
+      RABBITMQ_DEFAULT_PASS: password1!
+    networks:
+      - carrental-network
+    volumes:
+      # Persist data even if the container is removed
+      - rabbitmq_data:/var/lib/rabbitmq
 
   car-rental-service:
     build:
@@ -126,6 +144,7 @@
 volumes:
   mssql_data:
   keycloak_data:
+  rabbitmq_data:
 
 networks:
   carrental-network:

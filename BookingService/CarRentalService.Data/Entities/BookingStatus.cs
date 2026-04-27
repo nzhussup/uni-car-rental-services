@@ -6,5 +6,6 @@ public enum BookingStatus
     Canceled,
     PickedUp,
     ReturnLate,
-    Completed
+    Completed,
+    Pending
 }

@@ -1,4 +1,5 @@
 ﻿using CarRentalService.Data.Entities;
+using CarService.Common;
 using CarService.Models.DTOs;
 using CarService.Models.Responses;
 
@@ -12,4 +13,6 @@ public interface ICarService
     Task<CarDto> UpdateCarAsync(int id, UpdateCarDto updateCarDto);
     Task<bool> DeleteCarAsync(int id);
     Task<CarDto> SetCarStatusAsync(int id, CarStatus status);
+
+    Task HandleBookingInfoAsync(BookingInfo bookingInfo);
 }

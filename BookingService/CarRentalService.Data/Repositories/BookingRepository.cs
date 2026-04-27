@@ -3,19 +3,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CarRentalService.Data.Repositories;
 
-public class BookingRepository(CarRentalDbContext context) : IBookingRepository
+public class BookingRepository(BookingDbContext context) : IBookingRepository
 {
     public Task<IQueryable<Booking>> GetAllAsync()
     {
         return Task.FromResult(context.Bookings
-            .Include(x => x.Car)
             .AsQueryable());
     }
 
     public async Task<Booking?> GetByIdAsync(int id)
     {
         return await context.Bookings
-            .Include(x => x.Car)
             .FirstOrDefaultAsync(x => x.Id == id);
     }
 
