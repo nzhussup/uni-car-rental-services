@@ -4,7 +4,8 @@
     container_name: car-rental-nginx
     restart: unless-stopped
     depends_on:
-      - car-rental-service
+      - booking-service
+      - car-service
       - currency-converter-service
       - request-proxy-service
     ports:
@@ -51,21 +52,32 @@
       # Set your own credentials here
       RABBITMQ_DEFAULT_USER: emre
       RABBITMQ_DEFAULT_PASS: password1!
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping || exit 1"]
+      interval: 5s
+      timeout: 2s
+      retries: 10
     networks:
       - carrental-network
     volumes:
       # Persist data even if the container is removed
       - rabbitmq_data:/var/lib/rabbitmq
 
-  car-rental-service:
+  booking-service:
     build:
-      context: ../CarRentalService
+      context: ../BookingService
       dockerfile: Dockerfile
-    container_name: car-rental-service
+    container_name: booking-service
+    ports:
+      - "5001:8080"
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: "Development"
       ConnectionStrings__DefaultConnection: "Server=mssql,1433;Database=CarRentalDB;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;"
+      RabbitMQ__HostName: "rabbitmq"
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: "emre"
+      RabbitMQ__Password: "password1!"
       CurrencyConverterSettings__BaseUrl: "http://currency-converter-service:8080/soap"
       CurrencyConverterSettings__Username: "${CURRENCY_CONVERTER_SOAP_USERNAME:-admin}"
       CurrencyConverterSettings__Password: "${CURRENCY_CONVERTER_SOAP_PASSWORD:-admin}"
@@ -76,6 +88,39 @@
       KeycloakBootstrapAdmin__Password: "root"
     depends_on:
       mssql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - carrental-network
+
+  car-service:
+    build:
+      context: ../CarService
+      dockerfile: Dockerfile
+    container_name: car-service
+    ports:
+      - "5002:8080"
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ConnectionStrings__DefaultConnection: "Server=mssql,1433;Database=CarRentalDB;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;"
+      RabbitMQ__HostName: "rabbitmq"
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: "emre"
+      RabbitMQ__Password: "password1!"
+      CurrencyConverterSettings__BaseUrl: "http://currency-converter-service:8080/soap"
+      CurrencyConverterSettings__Username: "${CURRENCY_CONVERTER_SOAP_USERNAME:-admin}"
+      CurrencyConverterSettings__Password: "${CURRENCY_CONVERTER_SOAP_PASSWORD:-admin}"
+      Keycloak__auth-server-url: "http://keycloak:8080/"
+      KeycloakAdmin__authServerUrl: "http://keycloak:8080/"
+      KeycloakAdmin__realm: "car-rental-dev"
+      KeycloakBootstrapAdmin__Username: "root"
+      KeycloakBootstrapAdmin__Password: "root"
+    depends_on:
+      mssql:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - carrental-network

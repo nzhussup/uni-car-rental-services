@@ -27,7 +27,7 @@ public class Program
         builder.Services.AddDbContext<BookingDbContext>(options =>
             options.UseSqlServer(
                 builder.Configuration.GetConnectionString("DefaultConnection"),
-                sqlOptions => sqlOptions.MigrationsAssembly("CarRentalService.Web")));
+                sqlOptions => sqlOptions.MigrationsAssembly(typeof(BookingDbContext).Assembly.GetName().Name)));
 
         builder.Services.AddKeycloakWebApiAuthentication(builder.Configuration);
         builder.Services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
@@ -160,9 +160,9 @@ public class Program
             c.SwaggerDoc("v1",
                 new OpenApiInfo
                 {
-                    Title = "Car Rental Service API",
+                    Title = "Booking Service API",
                     Version = "v1",
-                    Description = "API Documentation"
+                    Description = "API Documentation for Booking Service"
                 });
         });
 
@@ -176,7 +176,14 @@ public class Program
 
         if (!skipDbMigration)
         {
-            app.Services.CreateScope().ServiceProvider.GetRequiredService<BookingDbContext>().Database.Migrate();
+            try
+            {
+                app.Services.CreateScope().ServiceProvider.GetRequiredService<BookingDbContext>().Database.Migrate();
+            }
+            catch (Microsoft.Data.SqlClient.SqlException ex) when (ex.Number == 1801)
+            {
+                Console.WriteLine("Database already exists (SqlException 1801). Continuing startup.");
+            }
         }
 
         app.UseExceptionHandler();

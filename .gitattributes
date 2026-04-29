@@ -1,0 +1,8 @@
+﻿# Enforce LF for scripts used inside Linux containers
+*.sh text eol=lf
+
+# Keep common text configs LF in containers/tooling
+Dockerfile text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+

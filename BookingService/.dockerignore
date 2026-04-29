@@ -1,0 +1,13 @@
+﻿bin/
+obj/
+.vs/
+.user
+.vscode/
+.git/
+**/bin/
+**/obj/
+*.log
+npm-debug.log*
+Dockerfile
+.env
+

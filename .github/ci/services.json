@@ -5,6 +5,14 @@
       "path": "CarRentalService"
     },
     {
+      "name": "booking-service",
+      "path": "BookingService"
+    },
+    {
+      "name": "car-service",
+      "path": "CarService"
+    },
+    {
       "name": "currency-converter-service",
       "path": "CurrencyConverterService"
     },
