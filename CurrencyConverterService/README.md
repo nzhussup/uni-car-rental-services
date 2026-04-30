@@ -29,12 +29,18 @@ Set credentials through environment variables before startup:
 
 - SOAP_USERNAME
 - SOAP_PASSWORD
+- REDIS_ADDR
+- REDIS_PASSWORD
+- REDIS_TLS_ENABLED
 
 Example:
 
 ```bash
 export SOAP_USERNAME=admin
 export SOAP_PASSWORD=admin
+export REDIS_ADDR=localhost:6379
+export REDIS_PASSWORD=redispassword1!
+export REDIS_TLS_ENABLED=false
 ```
 
 ## Run

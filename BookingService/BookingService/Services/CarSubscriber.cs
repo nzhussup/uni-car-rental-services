@@ -11,85 +11,111 @@ public class CarSubscriber(RabbitMQSettings rabbitMqSettings, IServiceScopeFacto
 {
     private IConnection? _connection;
     private IChannel? _channel;
+    private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(10);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // 1. Setup Connection and Channel
-        var factory = new ConnectionFactory { HostName = rabbitMqSettings.HostName, UserName = rabbitMqSettings.UserName, Password = rabbitMqSettings.Password, Port = rabbitMqSettings.Port };
-        _connection = await factory.CreateConnectionAsync(stoppingToken);
-        _channel = await _connection.CreateChannelAsync(cancellationToken: stoppingToken);
+        var factory = new ConnectionFactory
+        {
+            HostName = rabbitMqSettings.HostName,
+            UserName = rabbitMqSettings.UserName,
+            Password = rabbitMqSettings.Password,
+            Port = rabbitMqSettings.Port
+        };
 
-        // 2. Declare Exchange (Ensures it exists if consumer starts first)
-        string exchangeName = rabbitMqSettings.CarExchange;
-        await _channel.ExchangeDeclareAsync(exchange: exchangeName, type: ExchangeType.Topic, cancellationToken: stoppingToken);
-
-        // 3. Declare the Queue for THIS service
-        const string queueName = "car_queue";
-        await _channel.QueueDeclareAsync(queue: queueName,
-                                        durable: true,
-                                        exclusive: false,
-                                        autoDelete: false, cancellationToken: stoppingToken);
-
-        // 4. Bind the Queue to the Exchange using the Routing Key
-        await _channel.QueueBindAsync(queue: queueName,
-                                     exchange: exchangeName,
-                                     routingKey: "car.*", cancellationToken: stoppingToken);
-
-        // 5. Setup the Consumer
-        var consumer = new AsyncEventingBasicConsumer(_channel);
-
-        consumer.ReceivedAsync += async (model, ea) =>
+        while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                var body = ea.Body.ToArray();
-                var messageString = Encoding.UTF8.GetString(body);
+                _connection = await factory.CreateConnectionAsync(stoppingToken);
+                _channel = await _connection.CreateChannelAsync(cancellationToken: stoppingToken);
 
-                // Look at the "Type" header we set in the producer
-                var messageType = ea.BasicProperties.Type;
+                string exchangeName = rabbitMqSettings.CarExchange;
+                await _channel.ExchangeDeclareAsync(exchange: exchangeName, type: ExchangeType.Topic, cancellationToken: stoppingToken);
 
-                if (messageType == nameof(CarInfo))
+                const string queueName = "car_queue";
+                await _channel.QueueDeclareAsync(
+                    queue: queueName,
+                    durable: true,
+                    exclusive: false,
+                    autoDelete: false,
+                    cancellationToken: stoppingToken);
+
+                await _channel.QueueBindAsync(
+                    queue: queueName,
+                    exchange: exchangeName,
+                    routingKey: "car.*",
+                    cancellationToken: stoppingToken);
+
+                var consumer = new AsyncEventingBasicConsumer(_channel);
+
+                consumer.ReceivedAsync += async (model, ea) =>
                 {
-                    var data = JsonSerializer.Deserialize<CarInfo>(messageString);
+                    try
+                    {
+                        var body = ea.Body.ToArray();
+                        var messageString = Encoding.UTF8.GetString(body);
+                        var messageType = ea.BasicProperties.Type;
 
-                    // --- YOUR LOGIC HERE ---
-                    using var scope = serviceScopeFactory.CreateScope();
-                    var carService = scope.ServiceProvider.GetRequiredService<IBookingService>();
-                    await carService.HandleCarInfoAsync(data);
-                }
+                        if (messageType == nameof(CarInfo))
+                        {
+                            var data = JsonSerializer.Deserialize<CarInfo>(messageString);
+                            using var scope = serviceScopeFactory.CreateScope();
+                            var carService = scope.ServiceProvider.GetRequiredService<IBookingService>();
+                            await carService.HandleCarInfoAsync(data);
+                        }
 
-                if (messageType == nameof(MaintainanceStartInfo))
-                {
-                    var data = JsonSerializer.Deserialize<MaintainanceStartInfo>(messageString);
+                        if (messageType == nameof(MaintainanceStartInfo))
+                        {
+                            var data = JsonSerializer.Deserialize<MaintainanceStartInfo>(messageString);
+                            using var scope = serviceScopeFactory.CreateScope();
+                            var carService = scope.ServiceProvider.GetRequiredService<IBookingService>();
+                            await carService.HandleMaintainanceInfoAsync(data);
+                        }
 
-                    // --- YOUR LOGIC HERE ---
-                    using var scope = serviceScopeFactory.CreateScope();
-                    var carService = scope.ServiceProvider.GetRequiredService<IBookingService>();
-                    await carService.HandleMaintainanceInfoAsync(data);
-                }
+                        await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false, cancellationToken: stoppingToken);
+                    }
+                    catch (Exception e)
+                    {
+                        logger.LogError(e, e.Message);
+                    }
+                };
 
-                // 6. Manually Acknowledge the message (Safe approach)
-                await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false, cancellationToken: stoppingToken);
+                await _channel.BasicConsumeAsync(queue: queueName, autoAck: false, consumer: consumer, cancellationToken: stoppingToken);
+                logger.LogInformation("Connected to RabbitMQ at {Host}:{Port} and listening on queue {QueueName}", rabbitMqSettings.HostName, rabbitMqSettings.Port, queueName);
+                await Task.Delay(Timeout.Infinite, stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
             }
             catch (Exception e)
             {
-                logger.LogError(e, e.Message);
+                logger.LogWarning(e, "RabbitMQ subscriber connection failed. Retrying in {DelaySeconds} seconds.", RetryDelay.TotalSeconds);
+                await CleanupAsync(stoppingToken);
+                await Task.Delay(RetryDelay, stoppingToken);
             }
-
-        };
-
-        // 7. Start Consuming
-        await _channel.BasicConsumeAsync(queue: queueName, autoAck: false, consumer: consumer, cancellationToken: stoppingToken);
-
-        // Keep the service alive until the app shuts down
-        await Task.Delay(Timeout.Infinite, stoppingToken);
+        }
     }
 
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
-        // Cleanup resources on shutdown
-        if (_channel != null) await _channel.CloseAsync(cancellationToken: cancellationToken);
-        if (_connection != null) await _connection.CloseAsync(cancellationToken: cancellationToken);
+        await CleanupAsync(cancellationToken);
         await base.StopAsync(cancellationToken);
+    }
+
+    private async Task CleanupAsync(CancellationToken cancellationToken)
+    {
+        if (_channel != null)
+        {
+            await _channel.CloseAsync(cancellationToken: cancellationToken);
+            _channel = null;
+        }
+
+        if (_connection != null)
+        {
+            await _connection.CloseAsync(cancellationToken: cancellationToken);
+            _connection = null;
+        }
     }
 }

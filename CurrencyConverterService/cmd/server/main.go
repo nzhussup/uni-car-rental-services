@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"log/slog"
 	"net/http"
 	"os"
@@ -33,7 +34,15 @@ func main() {
 	baseFetcher := ecb.NewClient(ecbFeedURL, httpClient)
 	var ratesFetcher service.RatesFetcher = baseFetcher
 	if redisAddr := strings.TrimSpace(os.Getenv("REDIS_ADDR")); redisAddr != "" {
-		redisClient := redis.NewClient(&redis.Options{Addr: redisAddr})
+		redisOptions := &redis.Options{
+			Addr:     redisAddr,
+			Password: strings.TrimSpace(os.Getenv("REDIS_PASSWORD")),
+		}
+		if strings.EqualFold(strings.TrimSpace(os.Getenv("REDIS_TLS_ENABLED")), "true") {
+			redisOptions.TLSConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+		}
+
+		redisClient := redis.NewClient(redisOptions)
 		defer func() {
 			if err := redisClient.Close(); err != nil {
 				logger.Warn("failed to close redis client", "error", err)
