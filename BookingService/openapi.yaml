@@ -1,0 +1,552 @@
+openapi: 3.0.4
+info:
+  title: Booking Service API
+  description: API Documentation for Booking Service
+  version: v1
+paths:
+  /api/booking:
+    get:
+      tags:
+        - Booking
+      parameters:
+        - name: Skip
+          in: query
+          required: true
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Take
+          in: query
+          required: true
+          schema:
+            maximum: 50
+            minimum: 0
+            type: integer
+            format: int32
+        - name: targetCurrency
+          in: query
+          schema:
+            type: string
+            default: USD
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/BookingResponseQueryResponse'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingResponseQueryResponse'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/BookingResponseQueryResponse'
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    post:
+      tags:
+        - Booking
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookingDto'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookingDto'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/CreateBookingDto'
+        required: true
+      responses:
+        '201':
+          description: Created
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/BookingDto'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDto'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/BookingDto'
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /api/booking/user:
+    get:
+      tags:
+        - Booking
+      parameters:
+        - name: Skip
+          in: query
+          required: true
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Take
+          in: query
+          required: true
+          schema:
+            maximum: 50
+            minimum: 0
+            type: integer
+            format: int32
+        - name: targetCurrency
+          in: query
+          schema:
+            type: string
+            default: USD
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/BookingResponseQueryResponse'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingResponseQueryResponse'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/BookingResponseQueryResponse'
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  '/api/booking/{id}':
+    get:
+      tags:
+        - Booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: targetCurrency
+          in: query
+          schema:
+            type: string
+            default: USD
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/BookingResponse'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingResponse'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/BookingResponse'
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    delete:
+      tags:
+        - Booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '204':
+          description: No Content
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  '/api/booking/{id}/status':
+    patch:
+      tags:
+        - Booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBookingStatusDto'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBookingStatusDto'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/UpdateBookingStatusDto'
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/BookingDto'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDto'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/BookingDto'
+        '404':
+          description: Not Found
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  '/api/booking/{id}/cancel':
+    patch:
+      tags:
+        - Booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/BookingDto'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDto'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/BookingDto'
+        '404':
+          description: Not Found
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+components:
+  schemas:
+    BookingDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        carId:
+          type: integer
+          format: int32
+        userId:
+          type: string
+          format: uuid
+        user:
+          $ref: '#/components/schemas/UserDto'
+        bookingDate:
+          type: string
+          format: date-time
+        pickupDate:
+          type: string
+          format: date-time
+        dropoffDate:
+          type: string
+          format: date-time
+        totalCostInUsd:
+          type: number
+          format: double
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+      additionalProperties: false
+    BookingResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        carId:
+          type: integer
+          format: int32
+        userId:
+          type: string
+          format: uuid
+        user:
+          $ref: '#/components/schemas/UserDto'
+        bookingDate:
+          type: string
+          format: date-time
+        pickupDate:
+          type: string
+          format: date-time
+        dropoffDate:
+          type: string
+          format: date-time
+        totalCost:
+          $ref: '#/components/schemas/PriceDto'
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+      additionalProperties: false
+    BookingResponseQueryResponse:
+      type: object
+      properties:
+        totalElements:
+          type: integer
+          format: int32
+        elements:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookingResponse'
+          nullable: true
+      additionalProperties: false
+    BookingStatus:
+      enum:
+        - Booked
+        - Canceled
+        - PickedUp
+        - ReturnLate
+        - Completed
+        - Pending
+      type: string
+    CreateBookingDto:
+      required:
+        - dropoffDate
+        - pickupDate
+      type: object
+      properties:
+        carId:
+          type: integer
+          format: int32
+        pickupDate:
+          type: string
+          format: date-time
+        dropoffDate:
+          type: string
+          format: date-time
+      additionalProperties: false
+    PriceDto:
+      required:
+        - amount
+        - currency
+      type: object
+      properties:
+        amount:
+          type: number
+          format: double
+        currency:
+          type: string
+          nullable: true
+      additionalProperties: false
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+        status:
+          type: integer
+          format: int32
+          nullable: true
+        detail:
+          type: string
+          nullable: true
+        instance:
+          type: string
+          nullable: true
+      additionalProperties: { }
+    UpdateBookingStatusDto:
+      required:
+        - status
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+      additionalProperties: false
+    UserDto:
+      required:
+        - email
+        - firstName
+        - lastName
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+      additionalProperties: false
+tags:
+  - name: Booking

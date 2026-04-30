@@ -59,7 +59,8 @@ Example config:
 ```json
 {
   "services": [
-    { "name": "CarRentalService", "enabled": true },
+    { "name": "BookingService", "enabled": true },
+    { "name": "CarService", "enabled": true },
     { "name": "RequestProxyService", "enabled": true },
     { "name": "CurrencyConverterService", "enabled": false }
   ]

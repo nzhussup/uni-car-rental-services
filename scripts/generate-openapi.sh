@@ -7,6 +7,8 @@ DEFAULT_OUTPUT="$PROJECT_DIR/openapi.yaml"
 OUTPUT_PATH="${2:-$DEFAULT_OUTPUT}"
 OPENAPI_DOC_NAME="${OPENAPI_DOC_NAME:-v1}"
 SKIP_DB_MIGRATION_VALUE="${SKIP_DB_MIGRATION:-true}"
+ASPNETCORE_ENVIRONMENT_VALUE="${ASPNETCORE_ENVIRONMENT:-Development}"
+DOTNET_ENVIRONMENT_VALUE="${DOTNET_ENVIRONMENT:-$ASPNETCORE_ENVIRONMENT_VALUE}"
 
 ext="${OUTPUT_PATH##*.}"
 if [[ "$ext" == "json" ]]; then
@@ -183,13 +185,13 @@ generate_dotnet() {
 
   if [[ "$OUTPUT_FORMAT" == "yaml" ]]; then
     if [[ "$swagger_runner" == "dotnet-local" ]]; then
-      (cd "$PROJECT_DIR" && SKIP_DB_MIGRATION="$SKIP_DB_MIGRATION_VALUE" "${SWAGGER_CMD[@]}" tofile \
+      (cd "$PROJECT_DIR" && SKIP_DB_MIGRATION="$SKIP_DB_MIGRATION_VALUE" ASPNETCORE_ENVIRONMENT="$ASPNETCORE_ENVIRONMENT_VALUE" DOTNET_ENVIRONMENT="$DOTNET_ENVIRONMENT_VALUE" "${SWAGGER_CMD[@]}" tofile \
         --yaml \
         --output "$tmp_output" \
         "$DLL_PATH" \
         "$OPENAPI_DOC_NAME")
     else
-      SKIP_DB_MIGRATION="$SKIP_DB_MIGRATION_VALUE" "${SWAGGER_CMD[@]}" tofile \
+      SKIP_DB_MIGRATION="$SKIP_DB_MIGRATION_VALUE" ASPNETCORE_ENVIRONMENT="$ASPNETCORE_ENVIRONMENT_VALUE" DOTNET_ENVIRONMENT="$DOTNET_ENVIRONMENT_VALUE" "${SWAGGER_CMD[@]}" tofile \
         --yaml \
         --output "$tmp_output" \
         "$DLL_PATH" \
@@ -197,12 +199,12 @@ generate_dotnet() {
     fi
   else
     if [[ "$swagger_runner" == "dotnet-local" ]]; then
-      (cd "$PROJECT_DIR" && SKIP_DB_MIGRATION="$SKIP_DB_MIGRATION_VALUE" "${SWAGGER_CMD[@]}" tofile \
+      (cd "$PROJECT_DIR" && SKIP_DB_MIGRATION="$SKIP_DB_MIGRATION_VALUE" ASPNETCORE_ENVIRONMENT="$ASPNETCORE_ENVIRONMENT_VALUE" DOTNET_ENVIRONMENT="$DOTNET_ENVIRONMENT_VALUE" "${SWAGGER_CMD[@]}" tofile \
         --output "$tmp_output" \
         "$DLL_PATH" \
         "$OPENAPI_DOC_NAME")
     else
-      SKIP_DB_MIGRATION="$SKIP_DB_MIGRATION_VALUE" "${SWAGGER_CMD[@]}" tofile \
+      SKIP_DB_MIGRATION="$SKIP_DB_MIGRATION_VALUE" ASPNETCORE_ENVIRONMENT="$ASPNETCORE_ENVIRONMENT_VALUE" DOTNET_ENVIRONMENT="$DOTNET_ENVIRONMENT_VALUE" "${SWAGGER_CMD[@]}" tofile \
         --output "$tmp_output" \
         "$DLL_PATH" \
         "$OPENAPI_DOC_NAME"

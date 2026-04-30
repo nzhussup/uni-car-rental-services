@@ -1,0 +1,529 @@
+openapi: 3.0.4
+info:
+  title: Car Service API
+  description: API Documentation for Car Service
+  version: v1
+paths:
+  /api/cars:
+    get:
+      tags:
+        - Cars
+      parameters:
+        - name: CarManufacturer
+          in: query
+          schema:
+            type: string
+        - name: CarModel
+          in: query
+          schema:
+            type: string
+        - name: Year
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Status
+          in: query
+          schema:
+            $ref: '#/components/schemas/CarStatus'
+        - name: PickupDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: DropoffDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: Skip
+          in: query
+          required: true
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Take
+          in: query
+          required: true
+          schema:
+            maximum: 50
+            minimum: 0
+            type: integer
+            format: int32
+        - name: targetCurrency
+          in: query
+          schema:
+            type: string
+            default: USD
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/CarResponseQueryResponse'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarResponseQueryResponse'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/CarResponseQueryResponse'
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    post:
+      tags:
+        - Cars
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCarDto'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/CreateCarDto'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/CreateCarDto'
+      responses:
+        '201':
+          description: Created
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/CarDto'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarDto'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/CarDto'
+        '400':
+          description: Bad Request
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  '/api/cars/{id}':
+    get:
+      tags:
+        - Cars
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: targetCurrency
+          in: query
+          schema:
+            type: string
+            default: USD
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/CarResponse'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarResponse'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/CarResponse'
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    put:
+      tags:
+        - Cars
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCarDto'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCarDto'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/UpdateCarDto'
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/CarDto'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarDto'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/CarDto'
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    delete:
+      tags:
+        - Cars
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '204':
+          description: No Content
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  '/api/cars/{id}/status':
+    patch:
+      tags:
+        - Cars
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCarStatusDto'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCarStatusDto'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/UpdateCarStatusDto'
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/CarDto'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarDto'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/CarDto'
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+components:
+  schemas:
+    CarDto:
+      required:
+        - make
+        - model
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        make:
+          type: string
+          nullable: true
+        model:
+          type: string
+          nullable: true
+        year:
+          type: integer
+          format: int32
+        priceInUsd:
+          type: number
+          format: double
+        status:
+          $ref: '#/components/schemas/CarStatus'
+      additionalProperties: false
+    CarResponse:
+      required:
+        - make
+        - model
+      type: object
+      properties:
+        price:
+          $ref: '#/components/schemas/PriceDto'
+        id:
+          type: integer
+          format: int32
+        make:
+          type: string
+          nullable: true
+        model:
+          type: string
+          nullable: true
+        year:
+          type: integer
+          format: int32
+        status:
+          $ref: '#/components/schemas/CarStatus'
+      additionalProperties: false
+    CarResponseQueryResponse:
+      type: object
+      properties:
+        totalElements:
+          type: integer
+          format: int32
+        elements:
+          type: array
+          items:
+            $ref: '#/components/schemas/CarResponse'
+          nullable: true
+      additionalProperties: false
+    CarStatus:
+      enum:
+        - Available
+        - Maintenance
+      type: string
+    CreateCarDto:
+      required:
+        - make
+        - model
+        - priceInUsd
+        - year
+      type: object
+      properties:
+        make:
+          maxLength: 100
+          minLength: 1
+          type: string
+        model:
+          maxLength: 100
+          minLength: 1
+          type: string
+        year:
+          maximum: 2100
+          minimum: 1900
+          type: integer
+          format: int32
+        priceInUsd:
+          maximum: 1.7976931348623157E+308
+          minimum: 0.01
+          type: number
+          format: double
+      additionalProperties: false
+    PriceDto:
+      required:
+        - amount
+        - currency
+      type: object
+      properties:
+        amount:
+          type: number
+          format: double
+        currency:
+          type: string
+          nullable: true
+      additionalProperties: false
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+        status:
+          type: integer
+          format: int32
+          nullable: true
+        detail:
+          type: string
+          nullable: true
+        instance:
+          type: string
+          nullable: true
+      additionalProperties: { }
+    UpdateCarDto:
+      required:
+        - make
+        - model
+        - priceInUsd
+        - year
+      type: object
+      properties:
+        make:
+          maxLength: 100
+          minLength: 1
+          type: string
+        model:
+          maxLength: 100
+          minLength: 1
+          type: string
+        year:
+          maximum: 2100
+          minimum: 1900
+          type: integer
+          format: int32
+        priceInUsd:
+          maximum: 1.7976931348623157E+308
+          minimum: 0.01
+          type: number
+          format: double
+      additionalProperties: false
+    UpdateCarStatusDto:
+      required:
+        - status
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/CarStatus'
+      additionalProperties: false
+tags:
+  - name: Cars

@@ -1,7 +1,11 @@
 {
     "services": [
         {
-            "name": "CarRentalService",
+            "name": "BookingService",
+            "enabled": true
+        },
+        {
+            "name": "CarService",
             "enabled": true
         },
         {

@@ -19,7 +19,17 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        var builder = WebApplication.CreateBuilder(args);
+        BuildApp(args).Run();
+    }
+
+    public static WebApplication BuildApp(string[] args)
+    {
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+        {
+            Args = args,
+            ApplicationName = typeof(Program).Assembly.GetName().Name,
+            ContentRootPath = Directory.GetCurrentDirectory()
+        });
         const string FrontendCorsPolicy = "FrontendCors";
 
         builder.Services.AddHttpClient();
@@ -204,6 +214,16 @@ public class Program
         app.UseAuthentication();
         app.UseAuthorization();
         app.MapControllers();
-        app.Run();
+
+        return app;
+    }
+}
+
+public class SwaggerHostFactory
+{
+    public static IHost CreateHost()
+    {
+        Directory.SetCurrentDirectory(Path.GetDirectoryName(typeof(Program).Assembly.Location)!);
+        return Program.BuildApp(Array.Empty<string>());
     }
 }

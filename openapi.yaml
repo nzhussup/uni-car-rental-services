@@ -940,7 +940,85 @@ components:
         - "PickedUp"
         - "ReturnLate"
         - "Completed"
+        - "Pending"
       type: "string"
+    CreateBookingDto:
+      required:
+        - "dropoffDate"
+        - "pickupDate"
+      type: "object"
+      properties:
+        carId:
+          type: "integer"
+          format: "int32"
+        pickupDate:
+          type: "string"
+          format: "date-time"
+        dropoffDate:
+          type: "string"
+          format: "date-time"
+      additionalProperties: false
+    PriceDto:
+      required:
+        - "amount"
+        - "currency"
+      type: "object"
+      properties:
+        amount:
+          type: "number"
+          format: "double"
+        currency:
+          type: "string"
+          nullable: true
+      additionalProperties: false
+    ProblemDetails:
+      type: "object"
+      properties:
+        type:
+          type: "string"
+          nullable: true
+        title:
+          type: "string"
+          nullable: true
+        status:
+          type: "integer"
+          format: "int32"
+          nullable: true
+        detail:
+          type: "string"
+          nullable: true
+        instance:
+          type: "string"
+          nullable: true
+      additionalProperties: {}
+    UpdateBookingStatusDto:
+      required:
+        - "status"
+      type: "object"
+      properties:
+        status:
+          "$ref": "#/components/schemas/BookingStatus"
+      additionalProperties: false
+    UserDto:
+      required:
+        - "email"
+        - "firstName"
+        - "lastName"
+      type: "object"
+      properties:
+        id:
+          type: "string"
+          format: "uuid"
+        firstName:
+          type: "string"
+          nullable: true
+        lastName:
+          type: "string"
+          nullable: true
+        email:
+          type: "string"
+          nullable: true
+      additionalProperties: false
     CarDto:
       required:
         - "make"
@@ -1005,22 +1083,6 @@ components:
         - "Available"
         - "Maintenance"
       type: "string"
-    CreateBookingDto:
-      required:
-        - "dropoffDate"
-        - "pickupDate"
-      type: "object"
-      properties:
-        carId:
-          type: "integer"
-          format: "int32"
-        pickupDate:
-          type: "string"
-          format: "date-time"
-        dropoffDate:
-          type: "string"
-          format: "date-time"
-      additionalProperties: false
     CreateCarDto:
       required:
         - "make"
@@ -1047,47 +1109,6 @@ components:
           minimum: 0.01
           type: "number"
           format: "double"
-      additionalProperties: false
-    PriceDto:
-      required:
-        - "amount"
-        - "currency"
-      type: "object"
-      properties:
-        amount:
-          type: "number"
-          format: "double"
-        currency:
-          type: "string"
-          nullable: true
-      additionalProperties: false
-    ProblemDetails:
-      type: "object"
-      properties:
-        type:
-          type: "string"
-          nullable: true
-        title:
-          type: "string"
-          nullable: true
-        status:
-          type: "integer"
-          format: "int32"
-          nullable: true
-        detail:
-          type: "string"
-          nullable: true
-        instance:
-          type: "string"
-          nullable: true
-      additionalProperties: {}
-    UpdateBookingStatusDto:
-      required:
-        - "status"
-      type: "object"
-      properties:
-        status:
-          "$ref": "#/components/schemas/BookingStatus"
       additionalProperties: false
     UpdateCarDto:
       required:
@@ -1123,26 +1144,6 @@ components:
       properties:
         status:
           "$ref": "#/components/schemas/CarStatus"
-      additionalProperties: false
-    UserDto:
-      required:
-        - "email"
-        - "firstName"
-        - "lastName"
-      type: "object"
-      properties:
-        id:
-          type: "string"
-          format: "uuid"
-        firstName:
-          type: "string"
-          nullable: true
-        lastName:
-          type: "string"
-          nullable: true
-        email:
-          type: "string"
-          nullable: true
       additionalProperties: false
     proxy.ErrorResponse:
       properties:
