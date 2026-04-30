@@ -1,10 +1,6 @@
 {
   "services": [
     {
-      "name": "car-rental-service",
-      "path": "CarRentalService"
-    },
-    {
       "name": "booking-service",
       "path": "BookingService"
     },
