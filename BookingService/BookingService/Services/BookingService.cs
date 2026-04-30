@@ -146,6 +146,10 @@ public class BookingService(IBookingRepository repository, IMapper mapper, IUser
             case BookingStatus.ReturnLate:
                 booking.Status = BookingStatus.ReturnLate;
                 break;
+            case BookingStatus.Completed:
+                booking.Status = BookingStatus.Completed;
+                await messageProducer.SendBookingInfoAsync(mapper.Map<BookingInfo>(booking));
+                break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(bookingStatus), bookingStatus, null);
         }

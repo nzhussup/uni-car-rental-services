@@ -5,12 +5,18 @@ BEGIN
     DECLARE @Today DATE = CONVERT(DATE, SYSDATETIME());
 
     -- Clear existing data and reseed identities
+    IF OBJECT_ID('dbo.CarUnavailableDates', 'U') IS NOT NULL
+        DELETE FROM dbo.CarUnavailableDates;
     IF OBJECT_ID('dbo.Bookings', 'U') IS NOT NULL
         DELETE FROM dbo.Bookings;
     IF OBJECT_ID('dbo.Cars', 'U') IS NOT NULL
         DELETE FROM dbo.Cars;
-    DBCC CHECKIDENT ('dbo.Cars', RESEED, 0);
-    DBCC CHECKIDENT ('dbo.Bookings', RESEED, 0);
+    IF OBJECT_ID('dbo.CarUnavailableDates', 'U') IS NOT NULL
+        DBCC CHECKIDENT ('dbo.CarUnavailableDates', RESEED, 0);
+    IF OBJECT_ID('dbo.Cars', 'U') IS NOT NULL
+        DBCC CHECKIDENT ('dbo.Cars', RESEED, 0);
+    IF OBJECT_ID('dbo.Bookings', 'U') IS NOT NULL
+        DBCC CHECKIDENT ('dbo.Bookings', RESEED, 0);
 
     -- Seed cars: keep all cars Available; availability is now controlled by bookings
     INSERT INTO dbo.Cars (Make, Model, Year, PriceInUsd, Status)
@@ -68,16 +74,78 @@ BEGIN
 
     PRINT 'Cars seed data inserted successfully.';
 
-    -- Sample bookings that drive availability; totals in USD so conversion can work
-    INSERT INTO dbo.Bookings (CarId, UserId, PickupDate, DropoffDate, TotalCostInUsd, Status)
-    VALUES
-        -- Today through +2 days: blocks car id 3 (Mustang)
-        (3, NEWID(), @Today, DATEADD(DAY, 2, @Today), 2 * 89.99, 0),
-        -- Upcoming weekend booking: blocks car id 7 (Audi A4)
-        (7, NEWID(), DATEADD(DAY, 5, @Today), DATEADD(DAY, 8, @Today), 3 * 110.00, 0),
-        -- Past canceled booking: does NOT block availability
-        (10, NEWID(), DATEADD(DAY, -10, @Today), DATEADD(DAY, -8, @Today), 2 * 52.00, 1);
+    -- Sample bookings with the denormalized car snapshot required by BookingService.
+    INSERT INTO dbo.Bookings
+    (
+        CarId,
+        Make,
+        Model,
+        CarYear,
+        CarPriceInUsd,
+        UserId,
+        BookingDate,
+        PickupDate,
+        DropoffDate,
+        TotalCostInUsd,
+        Status
+    )
+    SELECT
+        c.Id,
+        c.Make,
+        c.Model,
+        c.Year,
+        c.PriceInUsd,
+        NEWID(),
+        DATEADD(DAY, -1, CAST(@Today AS DATETIME2)),
+        CAST(@Today AS DATETIME2),
+        DATEADD(DAY, 2, CAST(@Today AS DATETIME2)),
+        CAST(2 * c.PriceInUsd AS DECIMAL(18, 2)),
+        0
+    FROM dbo.Cars c
+    WHERE c.Id = 3
+
+    UNION ALL
+
+    SELECT
+        c.Id,
+        c.Make,
+        c.Model,
+        c.Year,
+        c.PriceInUsd,
+        NEWID(),
+        CAST(@Today AS DATETIME2),
+        DATEADD(DAY, 5, CAST(@Today AS DATETIME2)),
+        DATEADD(DAY, 8, CAST(@Today AS DATETIME2)),
+        CAST(3 * c.PriceInUsd AS DECIMAL(18, 2)),
+        0
+    FROM dbo.Cars c
+    WHERE c.Id = 7
+
+    UNION ALL
+
+    SELECT
+        c.Id,
+        c.Make,
+        c.Model,
+        c.Year,
+        c.PriceInUsd,
+        NEWID(),
+        DATEADD(DAY, -12, CAST(@Today AS DATETIME2)),
+        DATEADD(DAY, -10, CAST(@Today AS DATETIME2)),
+        DATEADD(DAY, -8, CAST(@Today AS DATETIME2)),
+        CAST(2 * c.PriceInUsd AS DECIMAL(18, 2)),
+        1
+    FROM dbo.Cars c
+    WHERE c.Id = 10;
 
     PRINT 'Bookings seed data inserted successfully.';
+
+    -- Keep CarService availability data in sync with blocking booking statuses.
+    INSERT INTO dbo.CarUnavailableDates (CarId, BookingId, PickupDate, DropOffDate)
+    SELECT CarId, Id, PickupDate, DropoffDate
+    FROM dbo.Bookings
+    WHERE Status NOT IN (1, 4);
+
+    PRINT 'Car unavailable date seed data inserted successfully.';
 END
 GO

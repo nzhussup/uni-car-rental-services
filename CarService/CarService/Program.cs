@@ -193,7 +193,8 @@ public class Program
             }
             catch (Microsoft.Data.SqlClient.SqlException ex) when (ex.Number == 1801)
             {
-                Console.WriteLine("Database already exists (SqlException 1801). Continuing startup.");
+                Console.WriteLine("Database already exists (SqlException 1801). Retrying migrations.");
+                app.Services.CreateScope().ServiceProvider.GetRequiredService<CarServiceDbContext>().Database.Migrate();
             }
         }
 

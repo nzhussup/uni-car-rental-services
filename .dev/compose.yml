@@ -69,7 +69,7 @@
       dockerfile: Dockerfile
     container_name: booking-service
     ports:
-      - "5001:8080"
+      - "5011:8080"
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: "Development"
