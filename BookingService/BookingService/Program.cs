@@ -119,7 +119,7 @@ public class Program
         {
             options.Address = new Uri(currencyConverterSettings.GrpcUrl);
         });
-        
+
         builder.Services.AddSingleton<RabbitMQSettings>(builder.Configuration.GetSection("RabbitMQ").Get<RabbitMQSettings>());
         builder.Services.AddScoped<IMessageProducer, MessageProducer>();
         builder.Services.AddScoped<IBookingRepository, BookingRepository>();
