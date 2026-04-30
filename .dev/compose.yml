@@ -64,6 +64,7 @@
       - rabbitmq_data:/var/lib/rabbitmq
 
   booking-service:
+    platform: linux/amd64
     build:
       context: ../BookingService
       dockerfile: Dockerfile
@@ -78,9 +79,9 @@
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: "emre"
       RabbitMQ__Password: "password1!"
-      CurrencyConverterSettings__BaseUrl: "http://currency-converter-service:8080/soap"
-      CurrencyConverterSettings__Username: "${CURRENCY_CONVERTER_SOAP_USERNAME:-admin}"
-      CurrencyConverterSettings__Password: "${CURRENCY_CONVERTER_SOAP_PASSWORD:-admin}"
+      CurrencyConverterSettings__GrpcUrl: "http://currency-converter-service:8080"
+      CurrencyConverterSettings__Username: "${CURRENCY_CONVERTER_GRPC_USERNAME:-admin}"
+      CurrencyConverterSettings__Password: "${CURRENCY_CONVERTER_GRPC_PASSWORD:-admin}"
       Keycloak__auth-server-url: "http://keycloak:8080/"
       KeycloakAdmin__authServerUrl: "http://keycloak:8080/"
       KeycloakAdmin__realm: "car-rental-dev"
@@ -95,6 +96,7 @@
       - carrental-network
 
   car-service:
+    platform: linux/amd64
     build:
       context: ../CarService
       dockerfile: Dockerfile
@@ -109,9 +111,9 @@
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: "emre"
       RabbitMQ__Password: "password1!"
-      CurrencyConverterSettings__BaseUrl: "http://currency-converter-service:8080/soap"
-      CurrencyConverterSettings__Username: "${CURRENCY_CONVERTER_SOAP_USERNAME:-admin}"
-      CurrencyConverterSettings__Password: "${CURRENCY_CONVERTER_SOAP_PASSWORD:-admin}"
+      CurrencyConverterSettings__GrpcUrl: "http://currency-converter-service:8080"
+      CurrencyConverterSettings__Username: "${CURRENCY_CONVERTER_GRPC_USERNAME:-admin}"
+      CurrencyConverterSettings__Password: "${CURRENCY_CONVERTER_GRPC_PASSWORD:-admin}"
       Keycloak__auth-server-url: "http://keycloak:8080/"
       KeycloakAdmin__authServerUrl: "http://keycloak:8080/"
       KeycloakAdmin__realm: "car-rental-dev"

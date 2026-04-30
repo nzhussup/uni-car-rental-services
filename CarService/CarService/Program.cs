@@ -1,7 +1,6 @@
 using System.Text.Json.Serialization;
 using CarRentalService.Data;
 using CarRentalService.Data.Repositories;
-using CarService.CurrencyConverterService;
 using CarService.Middleware;
 using CarService.Models.Settings;
 using CarService.Services;
@@ -12,6 +11,7 @@ using Keycloak.AuthServices.Sdk;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
+using CurrencyConverterClient = CurrencyConverter.Grpc.CurrencyConverter.CurrencyConverterClient;
 
 namespace CarService;
 
@@ -53,31 +53,32 @@ public class Program
         });
         builder.Services.AddAuthorization(options =>
             {
-                options.AddPolicy("User", builder =>
+                options.AddPolicy("User", policyBuilder =>
                 {
-                    builder
-                        .RequireRealmRoles("app-user"); // Realm role is fetched from token
+                    policyBuilder.RequireRealmRoles("app-user");
                 });
-                options.AddPolicy("Admin", builder =>
+
+                options.AddPolicy("Admin", policyBuilder =>
                 {
-                    builder
-                        .RequireRealmRoles("app-admin"); // Realm role is fetched from token
+                    policyBuilder.RequireRealmRoles("app-admin");
                 });
             })
             .AddKeycloakAuthorization(builder.Configuration);
-        var options =
+
+        var keycloakAdminOptions =
             builder.Configuration.GetSection("KeycloakAdmin").Get<KeycloakAdminClientOptions>();
-        if (options is null)
+
+        if (keycloakAdminOptions is null)
         {
             throw new InvalidOperationException("Missing required configuration section: KeycloakAdmin");
         }
 
         builder.Services.AddDistributedMemoryCache();
         var hasKeycloakAdminClientCredentials =
-            !string.IsNullOrWhiteSpace(options.Resource) &&
-            !string.IsNullOrWhiteSpace(options.KeycloakTokenEndpoint) &&
-            options.Credentials is not null &&
-            !string.IsNullOrWhiteSpace(options.Credentials.Secret);
+            !string.IsNullOrWhiteSpace(keycloakAdminOptions.Resource) &&
+            !string.IsNullOrWhiteSpace(keycloakAdminOptions.KeycloakTokenEndpoint) &&
+            keycloakAdminOptions.Credentials is not null &&
+            !string.IsNullOrWhiteSpace(keycloakAdminOptions.Credentials.Secret);
 
         if (hasKeycloakAdminClientCredentials)
         {
@@ -87,59 +88,47 @@ public class Program
                     "keycloak-admin-token",
                     client =>
                     {
-                        client.ClientId = ClientId.Parse(options.Resource);
-                        client.ClientSecret = ClientSecret.Parse(options.Credentials.Secret);
-                        client.TokenEndpoint = new Uri(options.KeycloakTokenEndpoint);
+                        client.ClientId = ClientId.Parse(keycloakAdminOptions.Resource);
+                        client.ClientSecret = ClientSecret.Parse(keycloakAdminOptions.Credentials.Secret);
+                        client.TokenEndpoint = new Uri(keycloakAdminOptions.KeycloakTokenEndpoint);
                     }
                 );
 
             var tokenClientName = ClientCredentialsClientName.Parse("keycloak-admin-token");
-            builder.Services.AddKeycloakAdminHttpClient(options)
+
+            builder.Services
+                .AddKeycloakAdminHttpClient(keycloakAdminOptions)
                 .AddClientCredentialsTokenHandler(tokenClientName);
         }
         else
         {
-            builder.Services.AddKeycloakAdminHttpClient(options);
-            Console.WriteLine("Warning: KeycloakAdmin client credentials are incomplete. SDK admin client token flow is disabled; bootstrap admin fallback will be used.");
+            builder.Services.AddKeycloakAdminHttpClient(keycloakAdminOptions);
+
+            Console.WriteLine(
+                "Warning: KeycloakAdmin client credentials are incomplete. SDK admin client token flow is disabled; bootstrap admin fallback will be used.");
         }
 
         var currencyConverterSettings =
             builder.Configuration.GetSection("CurrencyConverterSettings").Get<CurrencyConverterSettings>();
         if (currencyConverterSettings is null ||
-            string.IsNullOrWhiteSpace(currencyConverterSettings.BaseUrl) ||
+            string.IsNullOrWhiteSpace(currencyConverterSettings.GrpcUrl) ||
             string.IsNullOrWhiteSpace(currencyConverterSettings.Username) ||
             string.IsNullOrWhiteSpace(currencyConverterSettings.Password))
         {
-            throw new InvalidOperationException("CurrencyConverterSettings is incomplete. BaseUrl, Username and Password are required.");
+            throw new InvalidOperationException(
+                "CurrencyConverterSettings is incomplete. GrpcUrl, Username and Password are required.");
         }
 
-        builder.Services.AddScoped<CurrencyConverterPortTypeClient>(provider =>
+        builder.Services.AddSingleton(currencyConverterSettings);
+        builder.Services.AddGrpcClient<CurrencyConverterClient>(options =>
         {
-            var address = new System.ServiceModel.EndpointAddress(currencyConverterSettings.BaseUrl);
-            var securityMode = string.Equals(address.Uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
-                ? System.ServiceModel.BasicHttpSecurityMode.Transport
-                : System.ServiceModel.BasicHttpSecurityMode.TransportCredentialOnly;
-
-            var binding = new System.ServiceModel.BasicHttpBinding(securityMode)
-            {
-                Security =
-                {
-                    Transport = { ClientCredentialType = System.ServiceModel.HttpClientCredentialType.Basic },
-                },
-                MaxBufferSize = int.MaxValue,
-                MaxReceivedMessageSize = int.MaxValue,
-                ReaderQuotas = System.Xml.XmlDictionaryReaderQuotas.Max,
-                AllowCookies = true,
-            };
-
-            var client = new CurrencyConverterPortTypeClient(binding, address);
-            client.ClientCredentials.UserName.UserName = currencyConverterSettings.Username;
-            client.ClientCredentials.UserName.Password = currencyConverterSettings.Password;
-            return client;
+            options.Address = new Uri(currencyConverterSettings.GrpcUrl);
         });
 
+        builder.Services.AddSingleton(
+            builder.Configuration.GetSection("RabbitMQ").Get<RabbitMQSettings>()
+            ?? throw new InvalidOperationException("Missing required configuration section: RabbitMQ"));
 
-        builder.Services.AddSingleton<RabbitMQSettings>(builder.Configuration.GetSection("RabbitMQ").Get<RabbitMQSettings>());
         builder.Services.AddScoped<IMessageProducer, MessageProducer>();
         builder.Services.AddScoped<ICarRepository, CarRepository>();
         builder.Services.AddScoped<ICarService, Services.CarService>();
@@ -152,7 +141,10 @@ public class Program
         builder.Services.AddProblemDetails();
 
         builder.Services.AddControllers()
-            .AddJsonOptions(options => { options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
+            .AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+            });
 
         builder.Services.AddEndpointsApiExplorer();
 
@@ -168,7 +160,8 @@ public class Program
 
         builder.Services.AddSwaggerGen(c =>
         {
-            c.SwaggerDoc("v1",
+            c.SwaggerDoc(
+                "v1",
                 new OpenApiInfo
                 {
                     Title = "Car Service API",
@@ -189,12 +182,23 @@ public class Program
         {
             try
             {
-                app.Services.CreateScope().ServiceProvider.GetRequiredService<CarServiceDbContext>().Database.Migrate();
+                app.Services
+                    .CreateScope()
+                    .ServiceProvider
+                    .GetRequiredService<CarServiceDbContext>()
+                    .Database
+                    .Migrate();
             }
             catch (Microsoft.Data.SqlClient.SqlException ex) when (ex.Number == 1801)
             {
                 Console.WriteLine("Database already exists (SqlException 1801). Retrying migrations.");
-                app.Services.CreateScope().ServiceProvider.GetRequiredService<CarServiceDbContext>().Database.Migrate();
+
+                app.Services
+                    .CreateScope()
+                    .ServiceProvider
+                    .GetRequiredService<CarServiceDbContext>()
+                    .Database
+                    .Migrate();
             }
         }
 
@@ -204,7 +208,10 @@ public class Program
         if (app.Environment.IsDevelopment())
         {
             app.UseSwagger();
-            app.UseSwaggerUI(c => { c.SwaggerEndpoint("/swagger/v1/swagger.json", "Car Rental Service API V1"); });
+            app.UseSwaggerUI(c =>
+            {
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "Car Rental Service API V1");
+            });
         }
 
         if (!app.Environment.IsDevelopment())
@@ -214,6 +221,7 @@ public class Program
 
         app.UseAuthentication();
         app.UseAuthorization();
+
         app.MapControllers();
 
         return app;

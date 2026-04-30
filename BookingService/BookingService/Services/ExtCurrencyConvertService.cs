@@ -1,10 +1,15 @@
-using BookingService.CurrencyConverterService;
+using System.Text;
 using BookingService.Models.DTOs;
+using BookingService.Models.Settings;
+using Grpc.Core;
+using CurrencyConverterClient = CurrencyConverter.Grpc.CurrencyConverter.CurrencyConverterClient;
+using ConvertAmountRequest = CurrencyConverter.Grpc.ConvertAmountRequest;
 
 namespace BookingService.Services;
 
 public class ExtCurrencyConvertService(
-    CurrencyConverterPortTypeClient currencyConverterClient,
+    CurrencyConverterClient currencyConverterClient,
+    CurrencyConverterSettings settings,
     ILogger<ExtCurrencyConvertService> logger)
     : IExtCurrencyConvertService
 {
@@ -12,7 +17,7 @@ public class ExtCurrencyConvertService(
     {
         if (fromCurrency == toCurrency)
         {
-            return new PriceDto()
+            return new PriceDto
             {
                 Amount = amount,
                 Currency = fromCurrency
@@ -21,20 +26,54 @@ public class ExtCurrencyConvertService(
 
         try
         {
-            var response = await currencyConverterClient.ConvertAmountAsync((double)amount, fromCurrency, toCurrency);
-            var converted = (decimal?)response?.Body?.ConvertedAmount ?? 0m;
+            var credentials = Convert.ToBase64String(
+                Encoding.UTF8.GetBytes($"{settings.Username}:{settings.Password}"));
+
+            var metadata = new Metadata
+            {
+                { "authorization", $"Basic {credentials}" }
+            };
+
+            var response = await currencyConverterClient.ConvertAmountAsync(
+                new ConvertAmountRequest
+                {
+                    Amount = decimal.ToDouble(amount),
+                    FromCurrency = fromCurrency,
+                    ToCurrency = toCurrency
+                },
+                headers: metadata);
+
+            var converted = Convert.ToDecimal(response.ConvertedAmount);
 
             if (converted > 0)
             {
-                return new PriceDto()
+                return new PriceDto
                 {
                     Amount = converted,
                     Currency = toCurrency
                 };
             }
 
-            logger.LogWarning("Currency conversion returned zero. Falling back to original amount. From={FromCurrency}, To={ToCurrency}", fromCurrency, toCurrency);
-            return new PriceDto()
+            logger.LogWarning(
+                "Currency conversion returned zero. Falling back to original amount. From={FromCurrency}, To={ToCurrency}",
+                fromCurrency,
+                toCurrency);
+
+            return new PriceDto
+            {
+                Amount = amount,
+                Currency = fromCurrency
+            };
+        }
+        catch (RpcException e)
+        {
+            logger.LogError(
+                e,
+                "Currency could not be converted. From={FromCurrency}, To={ToCurrency}",
+                fromCurrency,
+                toCurrency);
+
+            return new PriceDto
             {
                 Amount = amount,
                 Currency = fromCurrency
@@ -42,13 +81,17 @@ public class ExtCurrencyConvertService(
         }
         catch (Exception e)
         {
-            logger.LogError("Currency could not be converted: {message}", e.Message);
-            return new PriceDto()
+            logger.LogError(
+                e,
+                "Currency could not be converted. From={FromCurrency}, To={ToCurrency}",
+                fromCurrency,
+                toCurrency);
+
+            return new PriceDto
             {
                 Amount = amount,
                 Currency = fromCurrency
             };
         }
-
     }
 }

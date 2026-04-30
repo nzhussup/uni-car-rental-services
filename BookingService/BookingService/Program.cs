@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using BookingService.CurrencyConverterService;
 using BookingService.Middleware;
 using BookingService.Models.Settings;
 using BookingService.Services;
@@ -12,6 +11,7 @@ using Keycloak.AuthServices.Sdk;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
+using CurrencyConverterClient = CurrencyConverter.Grpc.CurrencyConverter.CurrencyConverterClient;
 
 namespace BookingService;
 
@@ -106,37 +106,20 @@ public class Program
         var currencyConverterSettings =
             builder.Configuration.GetSection("CurrencyConverterSettings").Get<CurrencyConverterSettings>();
         if (currencyConverterSettings is null ||
-            string.IsNullOrWhiteSpace(currencyConverterSettings.BaseUrl) ||
+            string.IsNullOrWhiteSpace(currencyConverterSettings.GrpcUrl) ||
             string.IsNullOrWhiteSpace(currencyConverterSettings.Username) ||
             string.IsNullOrWhiteSpace(currencyConverterSettings.Password))
         {
-            throw new InvalidOperationException("CurrencyConverterSettings is incomplete. BaseUrl, Username and Password are required.");
+            throw new InvalidOperationException(
+                "CurrencyConverterSettings is incomplete. GrpcUrl, Username and Password are required.");
         }
 
-        builder.Services.AddScoped<CurrencyConverterPortTypeClient>(provider =>
+        builder.Services.AddSingleton(currencyConverterSettings);
+        builder.Services.AddGrpcClient<CurrencyConverterClient>(options =>
         {
-            var address = new System.ServiceModel.EndpointAddress(currencyConverterSettings.BaseUrl);
-            var securityMode = string.Equals(address.Uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
-                ? System.ServiceModel.BasicHttpSecurityMode.Transport
-                : System.ServiceModel.BasicHttpSecurityMode.TransportCredentialOnly;
-
-            var binding = new System.ServiceModel.BasicHttpBinding(securityMode)
-            {
-                Security =
-                {
-                    Transport = { ClientCredentialType = System.ServiceModel.HttpClientCredentialType.Basic },
-                },
-                MaxBufferSize = int.MaxValue,
-                MaxReceivedMessageSize = int.MaxValue,
-                ReaderQuotas = System.Xml.XmlDictionaryReaderQuotas.Max,
-                AllowCookies = true,
-            };
-
-            var client = new CurrencyConverterPortTypeClient(binding, address);
-            client.ClientCredentials.UserName.UserName = currencyConverterSettings.Username;
-            client.ClientCredentials.UserName.Password = currencyConverterSettings.Password;
-            return client;
+            options.Address = new Uri(currencyConverterSettings.GrpcUrl);
         });
+        
         builder.Services.AddSingleton<RabbitMQSettings>(builder.Configuration.GetSection("RabbitMQ").Get<RabbitMQSettings>());
         builder.Services.AddScoped<IMessageProducer, MessageProducer>();
         builder.Services.AddScoped<IBookingRepository, BookingRepository>();
