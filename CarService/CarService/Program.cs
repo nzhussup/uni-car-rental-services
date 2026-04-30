@@ -152,9 +152,11 @@ public class Program
         {
             options.AddPolicy(FrontendCorsPolicy, policy =>
             {
-                policy.WithOrigins("http://localhost:5173")
+                var allowedOrigin = builder.Configuration["Cors:AllowedOrigin"] ?? "http://localhost:5173";
+                policy.WithOrigins(allowedOrigin)
                     .AllowAnyHeader()
-                    .AllowAnyMethod();
+                    .AllowAnyMethod()
+                    .AllowCredentials();
             });
         });
 

@@ -153,6 +153,8 @@
       SOAP_USERNAME: "${CURRENCY_CONVERTER_SOAP_USERNAME:-admin}"
       SOAP_PASSWORD: "${CURRENCY_CONVERTER_SOAP_PASSWORD:-admin}"
       REDIS_ADDR: "redis:6379"
+      REDIS_PASSWORD: "${CURRENCY_CONVERTER_REDIS_PASSWORD:-redispassword1!}"
+      REDIS_TLS_ENABLED: "false"
     networks:
       - carrental-network
 
@@ -160,13 +162,22 @@
     image: redis:7-alpine
     container_name: currency-converter-redis
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    command:
+      [
+        "sh",
+        "-c",
+        "exec redis-server --appendonly yes --requirepass \"$${CURRENCY_CONVERTER_REDIS_PASSWORD:-redispassword1!}\"",
+      ]
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+        [
+          "CMD-SHELL",
+          "redis-cli -a \"$${CURRENCY_CONVERTER_REDIS_PASSWORD:-redispassword1!}\" ping | grep PONG",
+        ]
       interval: 5s
       timeout: 3s
       retries: 10

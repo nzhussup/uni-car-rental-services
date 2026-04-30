@@ -2,7 +2,7 @@ server {
     listen 8080 default_server;
     server_name _;
 
-    add_header Access-Control-Allow-Origin "*" always;
+    add_header Access-Control-Allow-Origin "$CORS_ALLOWED_ORIGIN" always;
     add_header Access-Control-Allow-Credentials "true" always;
     add_header Access-Control-Allow-Headers "Authorization, Content-Type, Accept, Origin, X-Requested-With" always;
     add_header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS" always;
@@ -34,14 +34,19 @@ server {
     proxy_send_timeout 60s;
     proxy_read_timeout 60s;
 
-    location /api/proxy/ {
-        proxy_set_header Host request-proxy-service;
-        proxy_pass http://request-proxy-service;
+    location /api/proxy {
+        proxy_set_header Host $host;
+        proxy_pass http://request-proxy-service:8080;
     }
 
-    location /api/ {
-        proxy_set_header Host car-rental-service;
-        proxy_pass http://car-rental-service;
+    location /api/booking {
+        proxy_set_header Host $host;
+        proxy_pass http://booking-service:8080;
+    }
+
+    location /api/cars {
+        proxy_set_header Host $host;
+        proxy_pass http://car-service:8080;
     }
 
     location / {
