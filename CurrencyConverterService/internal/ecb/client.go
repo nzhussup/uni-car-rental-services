@@ -2,6 +2,7 @@ package ecb
 
 import (
 	"context"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -18,6 +19,22 @@ type Client struct {
 	httpClient *http.Client
 }
 
+type ratesFetcher interface {
+	FetchRates(ctx context.Context) (RatesData, error)
+}
+
+type cacheStore interface {
+	Get(ctx context.Context, key string) (string, bool, error)
+	Set(ctx context.Context, key, value string, expiration time.Duration) error
+}
+
+type CachingClient struct {
+	fetcher  ratesFetcher
+	store    cacheStore
+	now      func() time.Time
+	cacheKey string
+}
+
 func NewClient(feedURL string, httpClient *http.Client) *Client {
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: 10 * time.Second}
@@ -26,6 +43,15 @@ func NewClient(feedURL string, httpClient *http.Client) *Client {
 	return &Client{
 		feedURL:    feedURL,
 		httpClient: httpClient,
+	}
+}
+
+func NewCachingClient(fetcher ratesFetcher, store cacheStore) *CachingClient {
+	return &CachingClient{
+		fetcher:  fetcher,
+		store:    store,
+		now:      time.Now,
+		cacheKey: "ecb:daily-rates",
 	}
 }
 
@@ -51,6 +77,40 @@ func (c *Client) FetchRates(ctx context.Context) (RatesData, error) {
 	}
 
 	return ParseRatesXML(body, c.feedURL)
+}
+
+func (c *CachingClient) FetchRates(ctx context.Context) (RatesData, error) {
+	if c == nil || c.fetcher == nil {
+		return RatesData{}, fmt.Errorf("missing ECB fetcher")
+	}
+
+	if c.store != nil {
+		if cached, ok, err := c.store.Get(ctx, c.cacheKey); err == nil && ok {
+			var cachedRates RatesData
+			if err := json.Unmarshal([]byte(cached), &cachedRates); err == nil {
+				return cachedRates, nil
+			}
+		}
+	}
+
+	rates, err := c.fetcher.FetchRates(ctx)
+	if err != nil {
+		return RatesData{}, err
+	}
+
+	if c.store != nil {
+		if cached, err := json.Marshal(rates); err == nil {
+			_ = c.store.Set(ctx, c.cacheKey, string(cached), ttlUntilNextMidnight(c.now()))
+		}
+	}
+
+	return rates, nil
+}
+
+func ttlUntilNextMidnight(now time.Time) time.Duration {
+	utc := now.UTC()
+	nextMidnight := time.Date(utc.Year(), utc.Month(), utc.Day()+1, 0, 0, 0, 0, time.UTC)
+	return nextMidnight.Sub(utc)
 }
 
 func ParseRatesXML(data []byte, source string) (RatesData, error) {

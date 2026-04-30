@@ -144,9 +144,30 @@
       dockerfile: Dockerfile
     container_name: currency-converter-service
     restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
     environment:
       SOAP_USERNAME: "${CURRENCY_CONVERTER_SOAP_USERNAME:-admin}"
       SOAP_PASSWORD: "${CURRENCY_CONVERTER_SOAP_PASSWORD:-admin}"
+      REDIS_ADDR: "redis:6379"
+    networks:
+      - carrental-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: currency-converter-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     networks:
       - carrental-network
 
@@ -190,6 +211,7 @@ volumes:
   mssql_data:
   keycloak_data:
   rabbitmq_data:
+  redis_data:
 
 networks:
   carrental-network:

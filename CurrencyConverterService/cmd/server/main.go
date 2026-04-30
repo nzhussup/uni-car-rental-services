@@ -15,6 +15,7 @@ import (
 	"currency-converter-service/internal/server"
 	"currency-converter-service/internal/service"
 
+	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 )
 
@@ -29,8 +30,23 @@ func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	httpClient := &http.Client{Timeout: 10 * time.Second}
-	ecbClient := ecb.NewClient(ecbFeedURL, httpClient)
-	converter := service.NewConverter(ecbClient)
+	baseFetcher := ecb.NewClient(ecbFeedURL, httpClient)
+	var ratesFetcher service.RatesFetcher = baseFetcher
+	if redisAddr := strings.TrimSpace(os.Getenv("REDIS_ADDR")); redisAddr != "" {
+		redisClient := redis.NewClient(&redis.Options{Addr: redisAddr})
+		defer func() {
+			if err := redisClient.Close(); err != nil {
+				logger.Warn("failed to close redis client", "error", err)
+			}
+		}()
+
+		if err := redisClient.Ping(context.Background()).Err(); err != nil {
+			logger.Warn("redis unavailable, continuing without cache", "error", err, "addr", redisAddr)
+		} else {
+			ratesFetcher = ecb.NewCachingClient(baseFetcher, ecb.NewRedisStore(redisClient))
+		}
+	}
+	converter := service.NewConverter(ratesFetcher)
 	soapUsername := strings.TrimSpace(os.Getenv("SOAP_USERNAME"))
 	soapPassword := strings.TrimSpace(os.Getenv("SOAP_PASSWORD"))
 	if soapUsername == "" || soapPassword == "" {
