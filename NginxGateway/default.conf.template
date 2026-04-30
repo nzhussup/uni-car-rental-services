@@ -35,18 +35,18 @@ server {
     proxy_read_timeout 60s;
 
     location /api/proxy {
-        proxy_set_header Host $host;
-        proxy_pass http://request-proxy-service:8080;
+        proxy_set_header Host request-proxy-service;
+        proxy_pass http://request-proxy-service;
     }
 
     location /api/booking {
-        proxy_set_header Host $host;
-        proxy_pass http://booking-service:8080;
+        proxy_set_header Host booking-service;
+        proxy_pass http://booking-service;
     }
 
     location /api/cars {
-        proxy_set_header Host $host;
-        proxy_pass http://car-service:8080;
+        proxy_set_header Host car-service;
+        proxy_pass http://car-service;
     }
 
     location / {
