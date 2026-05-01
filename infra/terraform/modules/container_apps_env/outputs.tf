@@ -9,3 +9,7 @@ output "name" {
 output "default_domain" {
   value = azurerm_container_app_environment.this.default_domain
 }
+
+output "resource_group_name" {
+  value = azurerm_container_app_environment.this.resource_group_name
+}

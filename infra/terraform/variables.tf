@@ -104,6 +104,36 @@ variable "currency_converter_soap_password" {
   description = "Basic auth password for currency-converter SOAP endpoint."
 }
 
+variable "rabbitmq_username" {
+  type        = string
+  description = "Username for the shared RabbitMQ broker."
+  default     = "emre"
+}
+
+variable "rabbitmq_password" {
+  type        = string
+  sensitive   = true
+  description = "Password for the shared RabbitMQ broker."
+}
+
+variable "rabbitmq_car_exchange" {
+  type        = string
+  description = "RabbitMQ exchange used for car events."
+  default     = "car_exchange"
+}
+
+variable "rabbitmq_booking_exchange" {
+  type        = string
+  description = "RabbitMQ exchange used for booking events."
+  default     = "booking_exchange"
+}
+
+variable "redis_password" {
+  type        = string
+  sensitive   = true
+  description = "Password for the Redis cache."
+}
+
 variable "keycloak_import_override" {
   type        = string
   description = "Whether Keycloak import should overwrite an existing realm ('true' or 'false')."
@@ -114,7 +144,8 @@ variable "image_tags" {
   type = object({
     frontend                   = string
     nginx_gateway              = string
-    car_rental_service         = string
+    car_service                = string
+    booking_service            = string
     request_proxy_service      = string
     currency_converter_service = string
     keycloak                   = string

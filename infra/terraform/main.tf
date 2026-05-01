@@ -33,10 +33,33 @@ module "sql" {
   tags                = var.tags
 }
 
+module "rabbitmq" {
+  source = "./modules/rabbitmq"
+
+  name                         = local.rabbitmq_app_name
+  resource_group_name          = module.resource_group.name
+  location                     = var.location
+  container_app_environment_id = module.container_apps_env.id
+  storage_account_name         = local.stateful_storage_account_name
+  username                     = var.rabbitmq_username
+  password                     = var.rabbitmq_password
+  tags                         = var.tags
+}
+
+module "redis" {
+  source = "./modules/redis"
+
+  name                         = local.redis_app_name
+  resource_group_name          = module.resource_group.name
+  container_app_environment_id = module.container_apps_env.id
+  password                     = var.redis_password
+  tags                         = var.tags
+}
+
 module "apps" {
   source = "./modules/container_app"
 
-  for_each = local.apps
+  for_each = local.stateless_apps
 
   name                         = each.value.name
   resource_group_name          = module.resource_group.name
@@ -50,6 +73,7 @@ module "apps" {
   image        = each.value.image
   external     = each.value.external
   target_port  = each.value.target_port
+  transport    = each.value.transport
   min_replicas = each.value.min_replicas
   max_replicas = each.value.max_replicas
   cpu          = each.value.cpu

@@ -53,6 +53,7 @@ resource "azurerm_container_app" "this" {
           secret_name = lower(replace(replace(env.key, "_", "-"), ".", "-"))
         }
       }
+
     }
   }
 
@@ -60,7 +61,7 @@ resource "azurerm_container_app" "this" {
     external_enabled           = var.external
     target_port                = var.target_port
     allow_insecure_connections = false
-    transport                  = "auto"
+    transport                  = var.transport
 
     traffic_weight {
       percentage      = 100

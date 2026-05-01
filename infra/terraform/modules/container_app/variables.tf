@@ -41,6 +41,11 @@ variable "target_port" {
   type = number
 }
 
+variable "transport" {
+  type    = string
+  default = "auto"
+}
+
 variable "min_replicas" {
   type = number
 }

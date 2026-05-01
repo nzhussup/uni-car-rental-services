@@ -25,9 +25,12 @@ Core resources:
 - Container Apps:
 - `car-rental-frontend`
 - `nginx-gateway`
+- `booking-service`
 - `car-rental-service`
 - `request-proxy-service`
 - `currency-converter-service`
+- `rabbitmq`
+- `redis`
 - `keycloak-service`
 
 ## Network and Exposure Model
@@ -40,9 +43,12 @@ Public apps:
 
 Internal apps:
 
+- booking-service
 - car-rental-service
 - request-proxy-service
 - currency-converter-service
+- rabbitmq
+- redis
 
 ## Runtime Wiring
 
@@ -50,10 +56,15 @@ Internal apps:
 Browser -> frontend
 Browser/API clients -> nginx-gateway
 Browser auth flow -> keycloak
+nginx-gateway -> booking-service
 nginx-gateway -> car-rental-service
 nginx-gateway -> request-proxy-service
+booking-service <-> rabbitmq
 car-rental-service -> currency-converter-service
+car-rental-service <-> rabbitmq
+currency-converter-service -> redis
 car-rental-service -> CarRentalDB
+booking-service -> CarRentalDB
 keycloak-service -> KeycloakDB
 ```
 
@@ -67,6 +78,7 @@ Secret values include:
 - proxy API keys
 - Keycloak admin/DB secrets
 - SOAP credentials
+- RabbitMQ credentials
 - GHCR credentials
 
 ## Quality Notes

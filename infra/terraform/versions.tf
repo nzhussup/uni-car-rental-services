@@ -20,9 +20,11 @@ provider "azurerm" {
 # az provider register --namespace Microsoft.OperationalInsights --wait
 # az provider register --namespace Microsoft.Sql --wait
 # az provider register --namespace Microsoft.Resources --wait
+# az provider register --namespace Microsoft.Storage --wait
 // Then check if they're registered
 # az provider show --namespace Microsoft.App --query registrationState -o tsv
 # az provider show --namespace Microsoft.OperationalInsights --query registrationState -o tsv
 # az provider show --namespace Microsoft.Sql --query registrationState -o tsv
 # az provider show --namespace Microsoft.Resources --query registrationState -o tsv
+# az provider show --namespace Microsoft.Storage --query registrationState -o tsv
 // This should return "Registered" for all of them

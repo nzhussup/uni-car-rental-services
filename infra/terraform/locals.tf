@@ -1,16 +1,20 @@
 locals {
   name_prefix = "${var.project_name}-${var.environment}"
 
-  sql_server_name        = replace(substr("${local.name_prefix}-sql", 0, 60), "_", "-")
-  log_analytics_name     = replace(substr("${local.name_prefix}-law", 0, 63), "_", "-")
-  containerapps_env_name = replace(substr("${local.name_prefix}-aca-env", 0, 32), "_", "-")
+  sql_server_name               = replace(substr("${local.name_prefix}-sql", 0, 60), "_", "-")
+  log_analytics_name            = replace(substr("${local.name_prefix}-law", 0, 63), "_", "-")
+  containerapps_env_name        = replace(substr("${local.name_prefix}-aca-env", 0, 32), "_", "-")
+  stateful_storage_account_name = substr(replace("${var.project_name}${var.environment}stateful", "-", ""), 0, 24)
 
   frontend_app_name           = "car-rental-frontend"
   nginx_gateway_app_name      = "nginx-gateway"
-  car_rental_app_name         = "car-rental-service"
+  car_app_name                = "car-service"
+  booking_app_name            = "booking-service"
   request_proxy_app_name      = "request-proxy-service"
   currency_converter_app_name = "currency-converter-service"
   keycloak_app_name           = "keycloak-service"
+  rabbitmq_app_name           = "rabbitmq"
+  redis_app_name              = "redis"
 
   car_rental_db_name = "CarRentalDB"
   keycloak_db_name   = "KeycloakDB"
@@ -23,15 +27,18 @@ locals {
   frontend_vite_api_base_url  = "https://${local.nginx_gateway_app_name}.${module.container_apps_env.default_domain}"
   frontend_vite_keycloak_url  = "https://${local.keycloak_app_name}.${module.container_apps_env.default_domain}"
   frontend_public_url         = "https://${local.frontend_app_name}.${module.container_apps_env.default_domain}"
-  currency_converter_base_url = "https://${local.currency_converter_app_name}.internal.${module.container_apps_env.default_domain}/soap"
+  currency_converter_grpc_url = "http://${local.currency_converter_app_name}"
+  rabbitmq_hostname           = local.rabbitmq_app_name
+  redis_address               = "${local.redis_app_name}:6379"
 
   org_name = "timmy-2003"
-  apps = {
+  stateless_apps = {
     frontend = {
       name         = local.frontend_app_name
       image        = "${var.ghcr_server}/${local.org_name}/car-rental-frontend:${var.image_tags.frontend}"
       external     = true
       target_port  = 80
+      transport    = "auto"
       min_replicas = 1
       max_replicas = 1
       cpu          = 0.25
@@ -51,37 +58,84 @@ locals {
       image        = "${var.ghcr_server}/${local.org_name}/nginx-gateway:${var.image_tags.nginx_gateway}"
       external     = true
       target_port  = 8080
+      transport    = "auto"
       min_replicas = 1
       max_replicas = 1
       cpu          = 0.25
       memory       = "0.5Gi"
-      env          = {}
-      secret_env   = {}
+      env = {
+        CORS_ALLOWED_ORIGIN = local.frontend_public_url
+      }
+      secret_env = {}
     }
 
-    car_rental_service = {
-      name         = local.car_rental_app_name
-      image        = "${var.ghcr_server}/${local.org_name}/car-rental-service:${var.image_tags.car_rental_service}"
+    car_service = {
+      name         = local.car_app_name
+      image        = "${var.ghcr_server}/${local.org_name}/car-service:${var.image_tags.car_service}"
       external     = false
       target_port  = 8080
+      transport    = "auto"
       min_replicas = 1
       max_replicas = 1
       cpu          = 0.5
       memory       = "1Gi"
       env = {
-        ASPNETCORE_ENVIRONMENT              = "Production"
-        CurrencyConverterSettings__BaseUrl  = local.currency_converter_base_url
-        Keycloak__realm                     = var.frontend_keycloak_realm
-        Keycloak__resource                  = var.frontend_keycloak_client_id
-        Keycloak__auth-server-url           = "${local.frontend_vite_keycloak_url}/"
-        Keycloak__verify-token-audience     = "false"
-        KeycloakAdmin__authServerUrl        = "${local.frontend_vite_keycloak_url}/"
-        KeycloakAdmin__realm                = var.frontend_keycloak_realm
+        ASPNETCORE_ENVIRONMENT             = "Production"
+        Cors__AllowedOrigin                = local.frontend_public_url
+        CurrencyConverterSettings__GrpcUrl = local.currency_converter_grpc_url
+        RabbitMQ__HostName                 = local.rabbitmq_hostname
+        RabbitMQ__Port                     = "5672"
+        RabbitMQ__UserName                 = var.rabbitmq_username
+        RabbitMQ__CarExchange              = var.rabbitmq_car_exchange
+        RabbitMQ__BookingExchange          = var.rabbitmq_booking_exchange
+        Keycloak__realm                    = var.frontend_keycloak_realm
+        Keycloak__resource                 = var.frontend_keycloak_client_id
+        Keycloak__auth-server-url          = "${local.frontend_vite_keycloak_url}/"
+        Keycloak__verify-token-audience    = "false"
+        KeycloakAdmin__authServerUrl       = "${local.frontend_vite_keycloak_url}/"
+        KeycloakAdmin__realm               = var.frontend_keycloak_realm
       }
       secret_env = {
         ConnectionStrings__DefaultConnection = local.car_rental_connection_string
         CurrencyConverterSettings__Username  = var.currency_converter_soap_username
         CurrencyConverterSettings__Password  = var.currency_converter_soap_password
+        RabbitMQ__Password                   = var.rabbitmq_password
+        KeycloakBootstrapAdmin__Username     = var.keycloak_admin_username
+        KeycloakBootstrapAdmin__Password     = var.keycloak_admin_password
+      }
+    }
+
+    booking_service = {
+      name         = local.booking_app_name
+      image        = "${var.ghcr_server}/${local.org_name}/booking-service:${var.image_tags.booking_service}"
+      external     = false
+      target_port  = 8080
+      transport    = "auto"
+      min_replicas = 1
+      max_replicas = 1
+      cpu          = 0.5
+      memory       = "1Gi"
+      env = {
+        ASPNETCORE_ENVIRONMENT             = "Production"
+        Cors__AllowedOrigin                = local.frontend_public_url
+        CurrencyConverterSettings__GrpcUrl = local.currency_converter_grpc_url
+        RabbitMQ__HostName                 = local.rabbitmq_hostname
+        RabbitMQ__Port                     = "5672"
+        RabbitMQ__UserName                 = var.rabbitmq_username
+        RabbitMQ__CarExchange              = var.rabbitmq_car_exchange
+        RabbitMQ__BookingExchange          = var.rabbitmq_booking_exchange
+        Keycloak__realm                    = var.frontend_keycloak_realm
+        Keycloak__resource                 = var.frontend_keycloak_client_id
+        Keycloak__auth-server-url          = "${local.frontend_vite_keycloak_url}/"
+        Keycloak__verify-token-audience    = "false"
+        KeycloakAdmin__authServerUrl       = "${local.frontend_vite_keycloak_url}/"
+        KeycloakAdmin__realm               = var.frontend_keycloak_realm
+      }
+      secret_env = {
+        ConnectionStrings__DefaultConnection = local.car_rental_connection_string
+        CurrencyConverterSettings__Username  = var.currency_converter_soap_username
+        CurrencyConverterSettings__Password  = var.currency_converter_soap_password
+        RabbitMQ__Password                   = var.rabbitmq_password
         KeycloakBootstrapAdmin__Username     = var.keycloak_admin_username
         KeycloakBootstrapAdmin__Password     = var.keycloak_admin_password
       }
@@ -92,6 +146,7 @@ locals {
       image        = "${var.ghcr_server}/${local.org_name}/request-proxy-service:${var.image_tags.request_proxy_service}"
       external     = false
       target_port  = 8080
+      transport    = "auto"
       min_replicas = 1
       max_replicas = 1
       cpu          = 0.25
@@ -108,14 +163,19 @@ locals {
       image        = "${var.ghcr_server}/${local.org_name}/currency-converter-service:${var.image_tags.currency_converter_service}"
       external     = false
       target_port  = 8080
+      transport    = "http2"
       min_replicas = 1
       max_replicas = 1
       cpu          = 0.25
       memory       = "0.5Gi"
-      env          = {}
+      env = {
+        REDIS_ADDR        = local.redis_address
+        REDIS_TLS_ENABLED = "false"
+      }
       secret_env = {
-        SOAP_USERNAME = var.currency_converter_soap_username
-        SOAP_PASSWORD = var.currency_converter_soap_password
+        SOAP_USERNAME  = var.currency_converter_soap_username
+        SOAP_PASSWORD  = var.currency_converter_soap_password
+        REDIS_PASSWORD = var.redis_password
       }
     }
 
@@ -124,6 +184,7 @@ locals {
       image        = "${var.ghcr_server}/${local.org_name}/keycloak-service:${var.image_tags.keycloak}"
       external     = true
       target_port  = 8080
+      transport    = "auto"
       min_replicas = 1
       max_replicas = 1
       cpu          = 0.5

@@ -47,9 +47,12 @@ Terraform provisions these Container Apps:
 
 - `car-rental-frontend`
 - `nginx-gateway`
+- `booking-service`
 - `car-rental-service`
 - `request-proxy-service`
 - `currency-converter-service`
+- `rabbitmq`
+- `redis`
 - `keycloak-service`
 
 Current runtime shape:
@@ -59,21 +62,27 @@ Current runtime shape:
   - `nginx-gateway`
   - `keycloak-service`
 - Internal-only apps:
+  - `booking-service`
   - `car-rental-service`
   - `request-proxy-service`
   - `currency-converter-service`
+  - `rabbitmq`
+  - `redis`
 - Revision mode: `Single`
 - Scaling:
-  - All apps currently use `min_replicas = 0`
+  - All apps currently use `min_replicas = 1`
   - All apps currently use `max_replicas = 1`
 
 Current CPU and memory settings:
 
 - `car-rental-frontend`: `0.25` CPU, `0.5Gi`
 - `nginx-gateway`: `0.25` CPU, `0.5Gi`
+- `booking-service`: `0.5` CPU, `1Gi`
 - `car-rental-service`: `0.5` CPU, `1Gi`
 - `request-proxy-service`: `0.25` CPU, `0.5Gi`
 - `currency-converter-service`: `0.25` CPU, `0.5Gi`
+- `rabbitmq`: `0.5` CPU, `1Gi`
+- `redis`: `0.25` CPU, `0.5Gi`
 - `keycloak-service`: `0.5` CPU, `1Gi`
 
 ## Traffic Topology
@@ -83,9 +92,13 @@ The deployed app topology is:
 - Browser -> `car-rental-frontend`
 - Browser/API client -> `nginx-gateway`
 - Browser -> `keycloak-service`
+- `nginx-gateway` -> `booking-service`
 - `nginx-gateway` -> `car-rental-service`
 - `nginx-gateway` -> `request-proxy-service`
+- `booking-service` <-> `rabbitmq`
+- `car-rental-service` <-> `rabbitmq`
 - `car-rental-service` -> `currency-converter-service`
+- `currency-converter-service` -> `redis`
 
 The backend services are intended to stay private inside the Container Apps environment. Public access is exposed only through:
 
@@ -122,14 +135,17 @@ Non-secret environment values currently include:
 - `NODE_ENV` for the frontend
 - `VITE_API_BASE_URL`, `VITE_KEYCLOAK_URL`, `VITE_KEYCLOAK_REALM`, `VITE_KEYCLOAK_CLIENT_ID` for frontend runtime config injection
 - `VITE_API_BASE_URL` and `VITE_KEYCLOAK_URL` are derived automatically from the `nginx-gateway` and `keycloak-service` Container App hostnames
-- `CORS_ALLOWED_ORIGIN` for `nginx-gateway`
-- `ASPNETCORE_ENVIRONMENT` and `CURRENCY_CONVERTER_BASE_URL` for `car-rental-service`
+- `ASPNETCORE_ENVIRONMENT`, `CurrencyConverterSettings__GrpcUrl`, and RabbitMQ connection metadata for `car-rental-service` and `booking-service`
+- `REDIS_ADDR` for `currency-converter-service`
 - Keycloak runtime configuration such as `KC_DB`, `KC_DB_URL`, `KEYCLOAK_FRONTEND_URL`, and realm import settings
 
 Secret environment values currently include:
 
-- `ConnectionStrings__DefaultConnection` for `car-rental-service`
+- `ConnectionStrings__DefaultConnection` for `car-rental-service` and `booking-service`
+- `CurrencyConverterSettings__Username` and `CurrencyConverterSettings__Password` for `car-rental-service` and `booking-service`
+- `RabbitMQ__Password` for `car-rental-service`, `booking-service`, and `rabbitmq`
 - `GOOGLE_MAPS_API_KEY` and `PEXELS_API_KEY` for `request-proxy-service`
+- `SOAP_USERNAME` and `SOAP_PASSWORD` for `currency-converter-service`
 - `KC_DB_PASSWORD`, `KC_BOOTSTRAP_ADMIN_USERNAME`, and `KC_BOOTSTRAP_ADMIN_PASSWORD` for `keycloak-service`
 - GHCR registry credentials for image pulls
 
@@ -141,12 +157,16 @@ This means frontend Docker builds do not require `VITE_*` build secrets or GitHu
 
 ## Images and Registry
 
-All application images are pulled from `ghcr.io`.
+Application service images are pulled from `ghcr.io`. Infrastructure dependencies use public images:
+
+- `rabbitmq:3-management`
+- `redis:7-alpine`
 
 The Terraform stack expects immutable image tags to be passed in through the `image_tags` variable for:
 
 - frontend
 - nginx gateway
+- booking service
 - car rental service
 - request proxy service
 - currency converter service
@@ -178,7 +198,7 @@ There is also a convenience script at `infra/scripts/update-all.sh` for local/ma
 
 ## Operational Notes
 
-- Keeping `min_replicas = 0` helps Container Apps scale to zero when idle.
+- RabbitMQ and Redis are deployed as single internal Container Apps with TCP ingress for service-to-service traffic.
 - Azure SQL is still billable while active; continuously running apps can keep serverless SQL awake.
 - Keycloak is intentionally public and separate from the NGINX gateway because browser auth flows must reach it directly.
 - Internal service-to-service communication relies on the Container Apps environment network, not public ingress.
