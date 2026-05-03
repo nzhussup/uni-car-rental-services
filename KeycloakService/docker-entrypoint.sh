@@ -50,6 +50,7 @@ render_realm_import() {
 
   sed \
     -e "s/car-rental-dev/${escaped_realm_name}/g" \
+    -e "s/car-rental-prod/${escaped_realm_name}/g" \
     -e "s|http://localhost:5173|${escaped_frontend_url}|g" \
     -e "s|https://replace-with-your-frontend-domain|${escaped_frontend_url}|g" \
     -e "s/\"sslRequired\": \"none\"/\"sslRequired\": \"${escaped_ssl_required}\"/" \

@@ -35,18 +35,23 @@ server {
     proxy_read_timeout 60s;
 
     location /api/proxy {
-        proxy_set_header Host request-proxy-service;
-        proxy_pass http://request-proxy-service;
+        proxy_set_header Host ${REQUEST_PROXY_UPSTREAM};
+        proxy_pass http://${REQUEST_PROXY_UPSTREAM};
     }
 
     location /api/booking {
-        proxy_set_header Host booking-service;
-        proxy_pass http://booking-service;
+        proxy_set_header Host ${BOOKING_UPSTREAM};
+        proxy_pass http://${BOOKING_UPSTREAM};
     }
 
     location /api/cars {
-        proxy_set_header Host car-service;
-        proxy_pass http://car-service;
+        proxy_set_header Host ${CARS_UPSTREAM};
+        proxy_pass http://${CARS_UPSTREAM};
+    }
+
+    location /api/ {
+        proxy_set_header Host ${API_UPSTREAM};
+        proxy_pass http://${API_UPSTREAM};
     }
 
     location / {
