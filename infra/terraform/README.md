@@ -29,31 +29,44 @@ The root Terraform stack creates these Azure resource types:
 
 Resource naming is based on:
 
-- `project_name`, default: `car-rental`
-- `environment`, default: `prod`
+- a short environment code derived from `environment`
+- `deployed_stacks` in `main.tf`, for example `["v1", "v2"]`
 
-With the current defaults, Terraform derives names like:
+Current naming pattern examples:
 
-- Resource group: `car-rental-prod-rg`
-- SQL server: `car-rental-prod-sql`
-- Log Analytics workspace: `car-rental-prod-law`
-- Container Apps environment: `car-rental-prod-aca-env`
+- Shared resource group: `cr-p-shared-rg`
+- Shared Log Analytics workspace: `cr-p-law`
+- Shared Container Apps environment: `cr-p-acae`
+- `v1` SQL server: `cr-p-v1-sql`
+- `v2` SQL server: `cr-p-v2-sql`
+- `v1` frontend app: `cr-p-v1-fe`
+- `v2` booking app: `cr-p-v2-bkg`
 
 The default Terraform region in this repo is `germanywestcentral`. That can be overridden through input variables.
 
 ## Container Apps
 
-Terraform provisions these Container Apps:
+Terraform provisions one shared Container Apps environment and then deploys versioned apps into it.
 
-- `car-rental-frontend`
-- `nginx-gateway`
-- `booking-service`
-- `car-rental-service`
-- `request-proxy-service`
-- `currency-converter-service`
-- `rabbitmq`
-- `redis`
-- `keycloak-service`
+Current stack topologies:
+
+- `v1`
+  - frontend
+  - gateway
+  - monolith API
+  - request proxy
+  - currency converter
+  - keycloak
+- `v2`
+  - frontend
+  - gateway
+  - car service
+  - booking service
+  - request proxy
+  - currency converter
+  - keycloak
+  - rabbitmq
+  - redis
 
 Current runtime shape:
 
@@ -87,18 +100,15 @@ Current CPU and memory settings:
 
 ## Traffic Topology
 
-The deployed app topology is:
+The deployed app topology is version-dependent:
 
-- Browser -> `car-rental-frontend`
-- Browser/API client -> `nginx-gateway`
-- Browser -> `keycloak-service`
-- `nginx-gateway` -> `booking-service`
-- `nginx-gateway` -> `car-rental-service`
-- `nginx-gateway` -> `request-proxy-service`
-- `booking-service` <-> `rabbitmq`
-- `car-rental-service` <-> `rabbitmq`
-- `car-rental-service` -> `currency-converter-service`
-- `currency-converter-service` -> `redis`
+- `v1`: gateway -> monolith API / request proxy
+- `v1`: monolith API -> currency converter
+- `v2`: gateway -> car service / booking service / request proxy
+- `v2`: car service <-> rabbitmq
+- `v2`: booking service <-> rabbitmq
+- `v2`: car service -> currency converter
+- `v2`: currency converter -> redis
 
 The backend services are intended to stay private inside the Container Apps environment. Public access is exposed only through:
 
@@ -108,9 +118,9 @@ The backend services are intended to stay private inside the Container Apps envi
 
 ## Database Stack
 
-Terraform provisions one Azure SQL logical server and two single databases:
+Terraform provisions one Azure SQL logical server per deployed stack and two single databases per server:
 
-- SQL server: derived from `${project_name}-${environment}-sql`
+- SQL server: derived from the short stack prefix, for example `cr-p-v1-sql`
 - Application database: `CarRentalDB`
 - Keycloak database: `KeycloakDB`
 
@@ -162,7 +172,7 @@ Application service images are pulled from `ghcr.io`. Infrastructure dependencie
 - `rabbitmq:3-management`
 - `redis:7-alpine`
 
-The Terraform stack expects immutable image tags to be passed in through the `image_tags` variable for:
+Application image versions are defined in `versions.tf` under `local.stack_versions`. `main.tf` declares which stacks should be deployed through `local.deployed_stacks`, and each selected stack provides immutable image tags for:
 
 - frontend
 - nginx gateway

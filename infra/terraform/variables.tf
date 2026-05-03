@@ -82,8 +82,9 @@ variable "keycloak_admin_password" {
 
 variable "frontend_keycloak_realm" {
   type        = string
-  description = "Runtime VITE_KEYCLOAK_REALM and Keycloak realm name used by the frontend."
-  default     = "car-rental-prod"
+  description = "Runtime VITE_KEYCLOAK_REALM and Keycloak realm name used by the frontend. Defaults to a realm derived from project, environment, and stack name."
+  default     = null
+  nullable    = true
 }
 
 variable "frontend_keycloak_client_id" {
@@ -138,18 +139,4 @@ variable "keycloak_import_override" {
   type        = string
   description = "Whether Keycloak import should overwrite an existing realm ('true' or 'false')."
   default     = "false"
-}
-
-variable "image_tags" {
-  type = object({
-    frontend                   = string
-    nginx_gateway              = string
-    car_service                = string
-    booking_service            = string
-    request_proxy_service      = string
-    currency_converter_service = string
-    keycloak                   = string
-  })
-
-  description = "Immutable image tags to deploy."
 }

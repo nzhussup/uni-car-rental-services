@@ -1,86 +1,71 @@
-module "resource_group" {
+locals {
+  deployed_stacks               = ["v1", "v2"]
+  environment_code_by_name      = { dev = "d", prod = "p" }
+  environment_code              = lookup(local.environment_code_by_name, var.environment, substr(var.environment, 0, 1))
+  shared_name_prefix            = "cr-${local.environment_code}"
+  shared_log_analytics_name     = "${local.shared_name_prefix}-law"
+  shared_containerapps_env_name = "${local.shared_name_prefix}-acae"
+}
+
+module "shared_resource_group" {
   source   = "./modules/resource_group"
-  name     = "${local.name_prefix}-rg"
+  name     = "${local.shared_name_prefix}-shared-rg"
   location = var.location
   tags     = var.tags
 }
 
-module "log_analytics" {
+module "shared_log_analytics" {
   source              = "./modules/log_analytics"
-  name                = local.log_analytics_name
+  name                = local.shared_log_analytics_name
   location            = var.location
-  resource_group_name = module.resource_group.name
+  resource_group_name = module.shared_resource_group.name
   tags                = var.tags
 }
 
-module "container_apps_env" {
+module "shared_container_apps_env" {
   source                     = "./modules/container_apps_env"
-  name                       = local.containerapps_env_name
+  name                       = local.shared_containerapps_env_name
   location                   = var.location
-  resource_group_name        = module.resource_group.name
-  log_analytics_workspace_id = module.log_analytics.id
+  resource_group_name        = module.shared_resource_group.name
+  log_analytics_workspace_id = module.shared_log_analytics.id
   tags                       = var.tags
 }
 
-module "sql" {
-  source              = "./modules/sql"
-  server_name         = local.sql_server_name
-  resource_group_name = module.resource_group.name
-  location            = var.location
-  admin_login         = var.sql_admin_login
-  admin_password      = var.sql_admin_password
-  database_names      = [local.car_rental_db_name, local.keycloak_db_name]
-  tags                = var.tags
-}
+module "stacks" {
+  source   = "./modules/platform_stack"
+  for_each = { for stack_name in local.deployed_stacks : stack_name => local.stack_versions[stack_name] }
 
-module "rabbitmq" {
-  source = "./modules/rabbitmq"
+  project_name                             = var.project_name
+  environment                              = var.environment
+  stack_name                               = each.key
+  location                                 = var.location
+  container_app_environment_id             = module.shared_container_apps_env.id
+  container_app_environment_name           = module.shared_container_apps_env.name
+  container_app_environment_default_domain = module.shared_container_apps_env.default_domain
+  tags                                     = var.tags
 
-  name                         = local.rabbitmq_app_name
-  resource_group_name          = module.resource_group.name
-  location                     = var.location
-  container_app_environment_id = module.container_apps_env.id
-  storage_account_name         = local.stateful_storage_account_name
-  username                     = var.rabbitmq_username
-  password                     = var.rabbitmq_password
-  tags                         = var.tags
-}
+  ghcr_server   = var.ghcr_server
+  ghcr_username = var.ghcr_username
+  ghcr_password = var.ghcr_password
 
-module "redis" {
-  source = "./modules/redis"
+  sql_admin_login    = var.sql_admin_login
+  sql_admin_password = var.sql_admin_password
 
-  name                         = local.redis_app_name
-  resource_group_name          = module.resource_group.name
-  container_app_environment_id = module.container_apps_env.id
-  password                     = var.redis_password
-  tags                         = var.tags
-}
+  google_maps_api_key         = var.google_maps_api_key
+  pexels_api_key              = var.pexels_api_key
+  keycloak_admin_username     = var.keycloak_admin_username
+  keycloak_admin_password     = var.keycloak_admin_password
+  frontend_keycloak_realm     = var.frontend_keycloak_realm
+  frontend_keycloak_client_id = var.frontend_keycloak_client_id
 
-module "apps" {
-  source = "./modules/container_app"
+  currency_converter_soap_username = var.currency_converter_soap_username
+  currency_converter_soap_password = var.currency_converter_soap_password
+  rabbitmq_username                = var.rabbitmq_username
+  rabbitmq_password                = var.rabbitmq_password
+  rabbitmq_car_exchange            = var.rabbitmq_car_exchange
+  rabbitmq_booking_exchange        = var.rabbitmq_booking_exchange
+  redis_password                   = var.redis_password
+  keycloak_import_override         = var.keycloak_import_override
 
-  for_each = local.stateless_apps
-
-  name                         = each.value.name
-  resource_group_name          = module.resource_group.name
-  container_app_environment_id = module.container_apps_env.id
-  revision_mode                = "Single"
-
-  registry_server   = var.ghcr_server
-  registry_username = var.ghcr_username
-  registry_password = var.ghcr_password
-
-  image        = each.value.image
-  external     = each.value.external
-  target_port  = each.value.target_port
-  transport    = each.value.transport
-  min_replicas = each.value.min_replicas
-  max_replicas = each.value.max_replicas
-  cpu          = each.value.cpu
-  memory       = each.value.memory
-
-  env        = each.value.env
-  secret_env = each.value.secret_env
-
-  tags = var.tags
+  stack_definition = each.value
 }

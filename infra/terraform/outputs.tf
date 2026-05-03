@@ -1,17 +1,23 @@
 output "resource_group_name" {
-  value = module.resource_group.name
+  value = {
+    for stack_name, stack in module.stacks : stack_name => stack.resource_group_name
+  }
 }
 
 output "container_apps_environment_name" {
-  value = module.container_apps_env.name
+  value = {
+    for stack_name, stack in module.stacks : stack_name => stack.container_apps_environment_name
+  }
 }
 
 output "sql_server_fqdn" {
-  value = module.sql.server_fqdn
+  value = {
+    for stack_name, stack in module.stacks : stack_name => stack.sql_server_fqdn
+  }
 }
 
 output "app_fqdns" {
   value = {
-    for app_name, app in module.apps : app_name => app.latest_fqdn
+    for stack_name, stack in module.stacks : stack_name => stack.app_fqdns
   }
 }
