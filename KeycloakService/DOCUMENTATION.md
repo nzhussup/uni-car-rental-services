@@ -1,45 +1,85 @@
-# KeycloakService Documentation
+# Keycloak Service Documentation
 
-## Overview
+## Overview and Responsibility
 
-`KeycloakService` provides authentication and authorization for the platform.
-It is used by frontend browser flows and backend JWT policy enforcement.
+`KeycloakService` is the identity provider for the platform. It provides login, token issuance, realm roles, and user profile storage for the Vue frontend and the protected .NET APIs.
 
-## Technologies
+## Tools and Technologies Used
 
 - Keycloak 26.1
-- SQL Server backend (`KC_DB=mssql`)
-- Realm templates (`car-rental-dev-realm.json`, `car-rental-prod-realm.json`)
-- Custom theme (`themes/leiwand-cars`)
-- Custom container entrypoint for deterministic realm import
+- Custom container image with multi-stage build
+- Realm template import at container startup
+- SQL Server / Azure SQL as the configured database backend
 
-## Runtime Behavior
+## Identity Model and API Role
 
-Container startup script:
+Key runtime facts:
 
-1. Selects import mode (`dev` or `prod`)
-2. Selects and renders realm template
-3. Replaces realm/frontend URL/SSL placeholders
-4. Imports realm via `kc.sh import`
-5. Starts Keycloak (`start-dev` for dev, `start --optimized` for prod)
+- development realm template: `car-rental-dev-realm.json`
+- production realm template: `car-rental-prod-realm.json`
+- frontend client id is supplied through environment configuration
+- main realm roles used by backend policies are `app-user` and `app-admin`
 
-## Identity Model
+The frontend uses Keycloak JavaScript for:
 
-- Realms: `car-rental-dev`, `car-rental-prod`
-- Frontend client: `car-rental-frontend`
-- Application roles:
-- `app-user`
-- `app-admin`
+- silent single sign-on check
+- login and logout redirects
+- profile loading
+- bearer token refresh
 
-Realm templates include bootstrap users and role assignments for setup convenience.
+The backend services use Keycloak JWT bearer authentication and realm-role authorization policies.
 
-## Integration Points
+## Runtime Wiring and Dependencies
 
-- Frontend: Keycloak JS (`check-sso`, PKCE)
-- Backend: bearer-token validation + role policies (`User`, `Admin`)
+```text
+Browser <-> KeycloakService
+BookingService -> KeycloakService
+CarService ----> KeycloakService
+KeycloakService -> SQL database
+```
 
-## Quality Notes
+The custom entrypoint:
 
-- Deterministic realm import and environment-driven configuration
-- Build validated in CI (`build-only` service classification)
-- Behavior-level automated realm/login tests are not currently in CI
+1. chooses dev or prod realm template
+2. replaces realm name, frontend URL, and SSL requirement placeholders
+3. imports the rendered realm JSON
+4. starts `kc.sh start-dev` or optimized production mode
+
+Important environment variables:
+
+- `KEYCLOAK_IMPORT_MODE`
+- `KEYCLOAK_REALM_TEMPLATE`
+- `KEYCLOAK_FRONTEND_URL`
+- `KEYCLOAK_REALM_NAME`
+- `KEYCLOAK_SSL_REQUIRED`
+- `KC_BOOTSTRAP_ADMIN_USERNAME`
+- `KC_BOOTSTRAP_ADMIN_PASSWORD`
+
+## Validation and Error Handling
+
+- startup fails if the selected realm template file is missing
+- production import refuses to continue if the frontend URL is left at `http://localhost:5173`
+- backend services can fall back to bootstrap-admin usage when full admin-client credentials are incomplete
+
+## Code Quality Practices
+
+- Build-only service in backend CI
+- Realm configuration is versioned in JSON templates
+- Docker image build bakes the theme and entrypoint into the final container
+
+## Lessons Learned
+
+### What does not work yet
+
+- There are no automated tests in this repository that validate full realm import behavior.
+- Identity behavior still depends on correct environment injection in each deployment target.
+
+### Experience with technologies
+
+- Centralized authentication through Keycloak keeps browser and API authorization aligned.
+- Templated realm imports are more reproducible than manual console setup.
+
+### Experience with AI tools used
+
+- AI helped articulate the auth architecture and document the environment contract.
+- The exact bootstrap and import behavior still required reading the Dockerfile and entrypoint script directly.
