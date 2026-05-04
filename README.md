@@ -11,6 +11,13 @@
 ![Terraform](https://img.shields.io/badge/IaC-Terraform-844fba?logo=terraform&logoColor=white)
 ![Docker](https://img.shields.io/badge/Deploy-Docker-2496ed?logo=docker&logoColor=white)
 
+<p align="center">
+  <strong style="color: #b00020; font-size: 1.15em;">
+    DISCLAIMER: This public repository is only a copy for portfolio purposes. The original private repository where the work was initially done is
+    <a href="https://github.com/timmy-2003/car-rental-services">timmy-2003/car-rental-services</a>.
+  </strong>
+</p>
+
 Backend and infrastructure repository for the car rental platform.
 
 Main components:
